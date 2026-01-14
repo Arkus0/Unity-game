@@ -87,21 +87,7 @@ namespace JRPG.Editor
                     foreach (Transform child in floorGrid.transform)
                     {
                         GameObject visual = ReplaceVisuals(child.gameObject, floorPrefab, 1.0f);
-                        // Fix for missing textures: Check renderer
-                        if (visual != null)
-                        {
-                            Renderer rend = visual.GetComponentInChildren<Renderer>();
-                            if (rend != null && rend.sharedMaterial == null)
-                            {
-                                // Material missing entirely, assign a default
-                                rend.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Default-Material.mat");
-                                if (rend.sharedMaterial == null)
-                                    rend.sharedMaterial = new Material(Shader.Find("Standard"));
-
-                                rend.sharedMaterial.color = new Color(0.4f, 0.5f, 0.3f); // Grass green fallback
-                                Debug.LogWarning($"Material missing on {visual.name}, assigned fallback green.");
-                            }
-                        }
+                        EnsureMaterial(visual, "Floor_UnevenBrick"); // Attempt to fix missing material
                     }
                     Debug.Log("Updated Floor Visuals.");
                 }
@@ -157,38 +143,99 @@ namespace JRPG.Editor
             foreach (var child in children) GameObject.DestroyImmediate(child);
 
             // Create Walls
-            InstantiatePart(wallS, parent, new Vector3(-2, 0, 2), Quaternion.Euler(0, 0, 0)); // Back Left
-            InstantiatePart(wallW, parent, new Vector3(2, 0, 2), Quaternion.Euler(0, 0, 0)); // Back Right (Window)
+            EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(-2, 0, 2), Quaternion.Euler(0, 0, 0)), "Wall_Plaster_Straight"); // Back Left
+            EnsureMaterial(InstantiatePart(wallW, parent, new Vector3(2, 0, 2), Quaternion.Euler(0, 0, 0)), "Wall_Plaster_Window"); // Back Right (Window)
 
-            InstantiatePart(wallS, parent, new Vector3(-2, 0, -2), Quaternion.Euler(0, 180, 0)); // Front Left
+            EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(-2, 0, -2), Quaternion.Euler(0, 180, 0)), "Wall_Plaster_Straight"); // Front Left
 
             // Doorway
             if (dFrame != null)
             {
                 GameObject frame = InstantiatePart(dFrame, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 180, 0));
+                EnsureMaterial(frame, "DoorFrame_Round_WoodDark");
                 if (dDoor != null)
                 {
-                    InstantiatePart(dDoor, frame.transform, Vector3.zero, Quaternion.identity);
+                    EnsureMaterial(InstantiatePart(dDoor, frame.transform, Vector3.zero, Quaternion.identity), "Door_1_Round");
                 }
             }
             else
             {
-                InstantiatePart(wallS, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 180, 0));
+                EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 180, 0)), "Wall_Plaster_Straight");
             }
 
             // Side Walls
-            InstantiatePart(wallS, parent, new Vector3(-2, 0, -2), Quaternion.Euler(0, 270, 0)); // Left Front
-            InstantiatePart(wallW, parent, new Vector3(-2, 0, 2), Quaternion.Euler(0, 270, 0)); // Left Back (Window)
+            EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(-2, 0, -2), Quaternion.Euler(0, 270, 0)), "Wall_Plaster_Straight"); // Left Front
+            EnsureMaterial(InstantiatePart(wallW, parent, new Vector3(-2, 0, 2), Quaternion.Euler(0, 270, 0)), "Wall_Plaster_Window"); // Left Back (Window)
 
-            InstantiatePart(wallS, parent, new Vector3(2, 0, 2), Quaternion.Euler(0, 90, 0)); // Right Back
-            InstantiatePart(wallS, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 90, 0)); // Right Front
+            EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(2, 0, 2), Quaternion.Euler(0, 90, 0)), "Wall_Plaster_Straight"); // Right Back
+            EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 90, 0)), "Wall_Plaster_Straight"); // Right Front
 
             // Roof
             if (roof != null)
             {
                 GameObject r = InstantiatePart(roof, parent, new Vector3(0, 4, 0), Quaternion.identity);
                 r.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
+                EnsureMaterial(r, "Roof_RoundTiles_4x4");
             }
+        }
+
+        private static void EnsureMaterial(GameObject obj, string assetBaseName)
+        {
+            if (obj == null) return;
+            Renderer rend = obj.GetComponentInChildren<Renderer>();
+            if (rend == null) return;
+
+            // If material is missing or default
+            if (rend.sharedMaterial == null || rend.sharedMaterial.name == "Default-Material" || rend.sharedMaterial.name == "Lit")
+            {
+                // Try to find textures matching the pattern "T_<BaseName>_BaseColor" etc
+                // Example: Floor_UnevenBrick -> T_UnevenBrick_BaseColor
+                string texturePrefix = assetBaseName.Replace("Floor_", "T_").Replace("Wall_", "T_").Replace("Roof_", "T_");
+                // Or try simpler heuristics if prefix mismatch
+                if (!texturePrefix.StartsWith("T_")) texturePrefix = "T_" + assetBaseName;
+
+                Texture2D albedo = FindTexture(texturePrefix + "_BaseColor");
+                if (albedo == null) albedo = FindTexture(texturePrefix + "BaseColor");
+
+                // If specific texture not found, maybe generic?
+                if (albedo == null && assetBaseName.Contains("UnevenBrick")) albedo = FindTexture("T_UnevenBrick_BaseColor");
+
+                if (albedo != null)
+                {
+                    // Create material
+                    Material mat = new Material(Shader.Find("Standard"));
+                    mat.name = "Mat_" + assetBaseName;
+                    mat.mainTexture = albedo;
+
+                    Texture2D normal = FindTexture(texturePrefix + "_Normal");
+                    if (normal != null)
+                    {
+                        mat.SetTexture("_BumpMap", normal);
+                        mat.EnableKeyword("_NORMALMAP");
+                    }
+
+                    rend.sharedMaterial = mat;
+                    Debug.Log($"Created and assigned material for {obj.name} using texture {albedo.name}");
+                }
+                else
+                {
+                    // Fallback Green
+                    Material mat = new Material(Shader.Find("Standard"));
+                    mat.color = new Color(0.4f, 0.5f, 0.3f);
+                    rend.sharedMaterial = mat;
+                }
+            }
+        }
+
+        private static Texture2D FindTexture(string name)
+        {
+            string[] guids = AssetDatabase.FindAssets(name + " t:Texture2D");
+            if (guids.Length > 0)
+            {
+                 string path = AssetDatabase.GUIDToAssetPath(guids[0]);
+                 return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            }
+            return null;
         }
 
         private static GameObject InstantiatePart(GameObject prefab, Transform parent, Vector3 pos, Quaternion rot)
