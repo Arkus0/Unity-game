@@ -58,6 +58,7 @@ namespace JRPG.Editor
         {
             GameObject obj = new GameObject("GameManager");
             obj.AddComponent<EncounterManager>();
+            obj.AddComponent<GameManager>();
         }
 
         private static GameObject CreatePlayer()

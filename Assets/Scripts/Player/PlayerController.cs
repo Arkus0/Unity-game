@@ -1,5 +1,6 @@
 using UnityEngine;
 using JRPG.Interaction;
+using JRPG.Systems;
 
 namespace JRPG.Player
 {
@@ -22,6 +23,20 @@ namespace JRPG.Player
             rb = GetComponent<Rigidbody>();
             // Default facing direction (Back/South in 3D usually)
             lastMovedDirection = Vector3.back;
+        }
+
+        private void Start()
+        {
+            // Restore position if GameManager has data
+            if (GameManager.Instance != null)
+            {
+                if (GameManager.Instance.TryLoadPlayerState(out Vector3 savedPos, out Quaternion savedRot))
+                {
+                    transform.position = savedPos;
+                    transform.rotation = savedRot;
+                    Debug.Log("Player Position Restored from GameManager.");
+                }
+            }
         }
 
         private void Update()

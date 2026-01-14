@@ -24,10 +24,16 @@ namespace JRPG.Systems
         {
             Debug.Log($"Starting Battle with Enemy: {enemyId}");
 
-            // Logic to load combat scene would go here.
-            // SceneManager.LoadScene("BattleScene");
+            // 1. Save Player Position before switching scenes
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null && GameManager.Instance != null)
+            {
+                GameManager.Instance.SavePlayerState(player.transform.position, player.transform.rotation, SceneManager.GetActiveScene().name);
+            }
 
-            // You might want to save the player's position before loading the battle scene.
+            // 2. Load Combat Scene
+            // For now we just log it, but here is where you would call:
+            // SceneManager.LoadScene("BattleScene");
         }
     }
 }
