@@ -182,14 +182,21 @@ namespace JRPG.Editor
                 if (visual != null)
                 {
                     Transform headBone = FindDeepChild(visual.transform, "Head");
+                    // Fallback for Mixamo or other rig naming conventions
+                    if (headBone == null) headBone = FindDeepChild(visual.transform, "mixamorig:Head");
+                    if (headBone == null) headBone = FindDeepChild(visual.transform, "Bip01 Head");
+
                     if (headBone != null)
                     {
                         if (hairPrefab != null)
                         {
                             GameObject hair = (GameObject)PrefabUtility.InstantiatePrefab(hairPrefab);
                             hair.transform.SetParent(headBone, false);
-                            hair.transform.localPosition = Vector3.zero;
+                            hair.transform.localPosition = Vector3.zero; // Reset position relative to bone
                             hair.transform.localRotation = Quaternion.identity;
+
+                            // Adjust scale if necessary, though 1,1,1 is standard
+                            hair.transform.localScale = Vector3.one;
                         }
                         if (eyebrowsPrefab != null)
                         {
@@ -198,6 +205,10 @@ namespace JRPG.Editor
                             brows.transform.localPosition = Vector3.zero;
                             brows.transform.localRotation = Quaternion.identity;
                         }
+                    }
+                    else
+                    {
+                        Debug.LogWarning("Could not find 'Head' bone (checked standard, mixamo, Bip01). Hair might be misplaced.");
                     }
 
                     // 3. Attach Animator Helper
@@ -220,10 +231,7 @@ namespace JRPG.Editor
 
         private static void SetupPlayerAnimatorController(Animator animator)
         {
-            // Check if controller already exists on the animator
-            if (animator.runtimeAnimatorController != null) return;
-
-            // Define path for the generated controller
+            // Always try to load or create the controller to ensure it's assigned
             string controllerPath = "Assets/PlayerController_Generated.controller";
             AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
 
@@ -255,15 +263,12 @@ namespace JRPG.Editor
 
                     BlendTree blendTree;
                     controller.CreateBlendTreeInState("Movement Blend Tree", moveState, out blendTree);
-                    blendTree.blendType = BlendTreeType.Simple1D; // Simplifying to 1D based on Speed for now, or 2D if we want direction
                     // Let's do 2D Freeform Cartesian for X/Y
                     blendTree.blendType = BlendTreeType.SimpleDirectional2D;
                     blendTree.blendParameter = "InputX";
                     blendTree.blendParameterY = "InputY";
 
                     // Add motions to blend tree
-                    // (0,0) is usually idle, but for movement state we usually want movement.
-                    // However, we transition to this state when IsMoving is true.
                     blendTree.AddChild(runClip, new Vector2(0, 1)); // Forward
                     blendTree.AddChild(runClip, new Vector2(0, -1)); // Back
                     blendTree.AddChild(runClip, new Vector2(-1, 0)); // Left
@@ -286,7 +291,11 @@ namespace JRPG.Editor
                 Debug.Log($"Created AnimatorController at {controllerPath}");
             }
 
+            // Force assignment
             animator.runtimeAnimatorController = controller;
+
+            // Rebind to ensure the Animator picks up the new controller immediately
+            animator.Rebind();
         }
 
         private static AnimationClip FindAnimationClip(string name)
