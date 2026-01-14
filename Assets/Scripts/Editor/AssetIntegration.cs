@@ -11,40 +11,35 @@ namespace JRPG.Editor
         public static void ApplyAssets()
         {
             // --- Characters ---
-            GameObject playerModel = FindAssetByName("Warrior_Male");
-            if (playerModel == null) playerModel = FindAssetByName("Human_Male");
-
-            GameObject enemyModel = FindAssetByName("Skeleton");
-            if (enemyModel == null) enemyModel = FindAssetByName("Monster");
-
-            GameObject npcModel = FindAssetByName("Civilian_Male");
-            if (npcModel == null) npcModel = FindAssetByName("Human_Female");
+            GameObject playerBody = FindAssetByName("Superhero_Male_FullBody");
+            GameObject playerHair = FindAssetByName("Hair_Buzzed");
+            GameObject playerEyebrows = FindAssetByName("Eyebrows_Regular");
 
             // --- Environment ---
-            // Generic names that might be in the Medieval Village pack
-            GameObject floorModel = FindAssetByName("Floor_Stone");
-            if (floorModel == null) floorModel = FindAssetByName("Ground_Grass");
+            GameObject floorModel = FindAssetByName("Floor_UnevenBrick");
 
-            GameObject houseModel = FindAssetByName("House_Type1");
-            if (houseModel == null) houseModel = FindAssetByName("House_Small");
+            // House components
+            GameObject wallStraight = FindAssetByName("Wall_Plaster_Straight");
+            GameObject wallWindow = FindAssetByName("Wall_Plaster_Window_Wide_Round");
+            GameObject doorFrame = FindAssetByName("DoorFrame_Round_WoodDark");
+            GameObject door = FindAssetByName("Door_1_Round");
+            GameObject roof = FindAssetByName("Roof_RoundTiles_4x4");
 
 
-            // Check if we found at least something
-            if (playerModel == null && floorModel == null)
+            // Check minimal requirements
+            if (playerBody == null && floorModel == null)
             {
                 EditorUtility.DisplayDialog("Assets Not Found",
-                    "Could not auto-detect Quaternius models.\n\n" +
-                    "Make sure you have imported 'Modular Character Outfits' and/or 'Medieval Village MegaKit'.", "OK");
+                    "Could not find specific assets (e.g., Superhero_Male_FullBody, Floor_UnevenBrick).\n\n" +
+                    "Make sure you have imported the FBX files into your Assets folder.", "OK");
                 return;
             }
 
             // Apply Characters
-            ApplyToPlayer(playerModel);
-            ApplyToEnemy(enemyModel);
-            ApplyToNPCs(npcModel);
+            ApplyToPlayer(playerBody, playerHair, playerEyebrows);
 
             // Apply Environment
-            ApplyToEnvironment(floorModel, houseModel);
+            ApplyToEnvironment(floorModel, wallStraight, wallWindow, doorFrame, door, roof);
 
             Debug.Log("Asset Integration Complete!");
         }
@@ -60,7 +55,7 @@ namespace JRPG.Editor
             return null;
         }
 
-        private static void ApplyToEnvironment(GameObject floorPrefab, GameObject housePrefab)
+        private static void ApplyToEnvironment(GameObject floorPrefab, GameObject wallS, GameObject wallW, GameObject dFrame, GameObject dDoor, GameObject roof)
         {
             // Apply Floor
             if (floorPrefab != null)
@@ -76,96 +71,153 @@ namespace JRPG.Editor
                 }
             }
 
-            // Apply Houses
-            if (housePrefab != null)
+            // Construct Houses
+            if (wallS != null && roof != null)
             {
-                GameObject[] houses = GameObject.FindGameObjectsWithTag("Untagged"); // We find by name manually
+                GameObject[] houses = GameObject.FindGameObjectsWithTag("Untagged");
                 foreach (var obj in houses)
                 {
                     if (obj.name == "House_Placeholder")
                     {
-                        // The placeholder has a child "House_Body" which is the cube.
-                        // We want to replace the whole "House_Body" with the prefab.
+                        // Remove placeholder cube
                         Transform body = obj.transform.Find("House_Body");
-                        if (body != null)
-                        {
-                            ReplaceVisuals(obj, housePrefab, 1.0f);
-                            GameObject.DestroyImmediate(body.gameObject);
-                        }
+                        if (body != null) GameObject.DestroyImmediate(body.gameObject);
+
+                        ConstructHouse(obj.transform, wallS, wallW, dFrame, dDoor, roof);
                     }
                 }
-                Debug.Log("Updated House Visuals.");
+                Debug.Log("Constructed Houses.");
             }
         }
 
-        private static void ApplyToPlayer(GameObject modelPrefab)
+        private static void ConstructHouse(Transform parent, GameObject wallS, GameObject wallW, GameObject dFrame, GameObject dDoor, GameObject roof)
         {
-            if (modelPrefab == null) return;
+            // Simple 2x2 House Construction
+            // 0,0 is center. Walls are usually 2m or 4m wide. Quaternius walls are often modular.
+
+            // Create Walls
+            InstantiatePart(wallS, parent, new Vector3(-2, 0, 2), Quaternion.Euler(0, 0, 0)); // Back Left
+            InstantiatePart(wallW, parent, new Vector3(2, 0, 2), Quaternion.Euler(0, 0, 0)); // Back Right (Window)
+
+            InstantiatePart(wallS, parent, new Vector3(-2, 0, -2), Quaternion.Euler(0, 180, 0)); // Front Left
+
+            // Doorway
+            if (dFrame != null)
+            {
+                GameObject frame = InstantiatePart(dFrame, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 180, 0));
+                if (dDoor != null)
+                {
+                    // Door is child of frame usually, or placed inside
+                    InstantiatePart(dDoor, frame.transform, Vector3.zero, Quaternion.identity);
+                }
+            }
+            else
+            {
+                InstantiatePart(wallS, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 180, 0));
+            }
+
+            // Side Walls
+            InstantiatePart(wallS, parent, new Vector3(-2, 0, -2), Quaternion.Euler(0, 270, 0)); // Left Front
+            InstantiatePart(wallW, parent, new Vector3(-2, 0, 2), Quaternion.Euler(0, 270, 0)); // Left Back (Window)
+
+            InstantiatePart(wallS, parent, new Vector3(2, 0, 2), Quaternion.Euler(0, 90, 0)); // Right Back
+            InstantiatePart(wallS, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 90, 0)); // Right Front
+
+            // Roof
+            if (roof != null)
+            {
+                // Centered roof
+                GameObject r = InstantiatePart(roof, parent, new Vector3(0, 4, 0), Quaternion.identity); // Height 4m approx
+                r.transform.localScale = new Vector3(1.2f, 1.2f, 1.2f); // Make it slightly bigger to cover edges
+            }
+        }
+
+        private static GameObject InstantiatePart(GameObject prefab, Transform parent, Vector3 pos, Quaternion rot)
+        {
+            if (prefab == null) return null;
+            GameObject part = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = pos;
+            part.transform.localRotation = rot;
+            return part;
+        }
+
+        private static void ApplyToPlayer(GameObject bodyPrefab, GameObject hairPrefab, GameObject eyebrowsPrefab)
+        {
+            if (bodyPrefab == null) return;
 
             PlayerController player = GameObject.FindObjectOfType<PlayerController>();
             if (player != null)
             {
-                GameObject visual = ReplaceVisuals(player.gameObject, modelPrefab, 1.0f);
+                // 1. Replace Body
+                GameObject visual = ReplaceVisuals(player.gameObject, bodyPrefab, 1.0f);
 
-                // Attach Animator Helper
-                if (visual.GetComponent<Animator>())
+                // 2. Attach Hair/Eyebrows
+                if (visual != null)
                 {
-                    if (visual.GetComponent<PlayerAnimator>() == null)
+                    Transform headBone = FindDeepChild(visual.transform, "Head");
+                    if (headBone != null)
                     {
-                        visual.AddComponent<PlayerAnimator>();
+                        if (hairPrefab != null)
+                        {
+                            GameObject hair = (GameObject)PrefabUtility.InstantiatePrefab(hairPrefab);
+                            hair.transform.SetParent(headBone, false);
+                            hair.transform.localPosition = Vector3.zero;
+                            hair.transform.localRotation = Quaternion.identity;
+                        }
+                        if (eyebrowsPrefab != null)
+                        {
+                            GameObject brows = (GameObject)PrefabUtility.InstantiatePrefab(eyebrowsPrefab);
+                            brows.transform.SetParent(headBone, false);
+                            brows.transform.localPosition = Vector3.zero;
+                            brows.transform.localRotation = Quaternion.identity;
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning("Could not find 'Head' bone in player model. Hair not attached.");
+                    }
+
+                    // 3. Attach Animator Helper
+                    if (visual.GetComponent<Animator>())
+                    {
+                        if (visual.GetComponent<PlayerAnimator>() == null)
+                        {
+                            visual.AddComponent<PlayerAnimator>();
+                        }
                     }
                 }
 
-                Debug.Log("Updated Player Visuals.");
+                Debug.Log("Updated Player Visuals with Hair/Eyebrows.");
             }
         }
 
-        private static void ApplyToEnemy(GameObject modelPrefab)
+        private static Transform FindDeepChild(Transform aParent, string aName)
         {
-            if (modelPrefab == null) return;
-
-            EnemyOverworld[] enemies = GameObject.FindObjectsOfType<EnemyOverworld>();
-            foreach (var enemy in enemies)
+            foreach(Transform child in aParent)
             {
-                ReplaceVisuals(enemy.gameObject, modelPrefab, 1.0f);
+                if(child.name == aName )
+                    return child;
+                Transform result = FindDeepChild(child, aName);
+                if (result != null)
+                    return result;
             }
-            if (enemies.Length > 0) Debug.Log("Updated Enemy Visuals.");
-        }
-
-        private static void ApplyToNPCs(GameObject modelPrefab)
-        {
-            if (modelPrefab == null) return;
-
-            NPC[] npcs = GameObject.FindObjectsOfType<NPC>();
-            foreach (var npc in npcs)
-            {
-                ReplaceVisuals(npc.gameObject, modelPrefab, 1.0f);
-            }
-            if (npcs.Length > 0) Debug.Log("Updated NPC Visuals.");
+            return null;
         }
 
         private static GameObject ReplaceVisuals(GameObject target, GameObject newModelPrefab, float scale)
         {
-            // 1. Remove old mesh renderer/filter components (primitives)
+            // Remove old primitives
             foreach (var rend in target.GetComponentsInChildren<MeshRenderer>())
             {
-                // Don't destroy if it's not the target itself (unless it's a primitive child we want to clear)
-                // But for Character capsules, the renderer is on the object.
-                // For Floor tiles, it is on the object.
-                if (rend.gameObject == target)
-                {
-                    GameObject.DestroyImmediate(rend);
-                }
+                if (rend.gameObject == target) GameObject.DestroyImmediate(rend);
             }
             foreach (var filter in target.GetComponentsInChildren<MeshFilter>())
             {
-                 if (filter.gameObject == target)
-                 {
-                    GameObject.DestroyImmediate(filter);
-                 }
+                 if (filter.gameObject == target) GameObject.DestroyImmediate(filter);
             }
 
-            // 2. Instantiate new model as child
+            // Instantiate new model
             GameObject visual = (GameObject)PrefabUtility.InstantiatePrefab(newModelPrefab);
             visual.transform.SetParent(target.transform, false);
             visual.transform.localPosition = Vector3.zero;
