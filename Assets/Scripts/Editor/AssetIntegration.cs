@@ -12,260 +12,175 @@ namespace JRPG.Editor
         [MenuItem("Tools/JRPG/Apply Quaternius Assets")]
         public static void ApplyAssets()
         {
-            // --- Characters ---
-            GameObject playerBody = FindAssetByName("Superhero_Male_FullBody", true);
-            GameObject playerHair = FindAssetByName("Hair_Buzzed");
-            GameObject playerEyebrows = FindAssetByName("Eyebrows_Regular");
-
-            // --- Environment ---
-            // Try looser matching for environment assets
-            GameObject floorModel = FindAssetByName("Floor_UnevenBrick");
-
-            // House components
-            GameObject wallStraight = FindAssetByName("Wall_Plaster_Straight");
-            GameObject wallWindow = FindAssetByName("Wall_Plaster_Window_Wide_Round");
-            GameObject doorFrame = FindAssetByName("DoorFrame_Round_WoodDark");
-            GameObject door = FindAssetByName("Door_1_Round");
-            GameObject roof = FindAssetByName("Roof_RoundTiles_4x4");
-
-            // Logging for missing critical assets
-            if (playerBody == null) Debug.LogError("Missing Asset: Superhero_Male_FullBody");
-            if (floorModel == null) Debug.LogWarning("Missing Asset: Floor_UnevenBrick");
-            if (wallStraight == null) Debug.LogWarning("Missing Asset: Wall_Plaster_Straight");
-            if (roof == null) Debug.LogWarning("Missing Asset: Roof_RoundTiles_4x4");
-
-            // Apply Characters
-            ApplyToPlayer(playerBody, playerHair, playerEyebrows);
-
-            // Apply Environment
-            ApplyToEnvironment(floorModel, wallStraight, wallWindow, doorFrame, door, roof);
-
-            Debug.Log("Asset Integration Logic Completed.");
+            // Kept for backward compatibility or if user wants to retry,
+            // but QuickSetup will call BuildMedievalVillage directly.
+            Debug.Log("Please use 'Create 3D Test Scene' to build the new village.");
         }
 
-        private static GameObject FindAssetByName(string partialName, bool forceExact = false)
+        // --- New Village Generation for "Medieval Fantasy Town" ---
+        public static void BuildMedievalVillage(Transform parent)
         {
-            // 1. Try exact/partial match as provided
-            string[] guids = AssetDatabase.FindAssets(partialName + " t:GameObject");
+            // 1. Find Ground
+            BuildGround(parent);
+
+            // 2. Find Houses
+            List<GameObject> housePrefabs = FindPrefabsByKeywords("House", "Cottage", "Building", "Structure", "Home");
+            if (housePrefabs.Count > 0)
+            {
+                // Simple Street Layout
+                // Left side
+                for (int z = -10; z <= 10; z += 10)
+                {
+                    GameObject prefab = housePrefabs[Random.Range(0, housePrefabs.Count)];
+                    SpawnPrefab(prefab, parent, new Vector3(-8, 0, z), Quaternion.Euler(0, 90, 0));
+                }
+                // Right side
+                for (int z = -10; z <= 10; z += 10)
+                {
+                    GameObject prefab = housePrefabs[Random.Range(0, housePrefabs.Count)];
+                    SpawnPrefab(prefab, parent, new Vector3(8, 0, z), Quaternion.Euler(0, -90, 0));
+                }
+                Debug.Log($"Placed {housePrefabs.Count} unique house types in the village.");
+            }
+            else
+            {
+                Debug.LogWarning("No House/Cottage prefabs found. Village will be empty.");
+            }
+
+            // 3. Find Props (Market, Crate, Wagon)
+            List<GameObject> propPrefabs = FindPrefabsByKeywords("Market", "Stall", "Wagon", "Cart", "Crate", "Barrel", "Fence");
+            if (propPrefabs.Count > 0)
+            {
+                // Scatter some props
+                for (int i = 0; i < 5; i++)
+                {
+                     GameObject p = propPrefabs[Random.Range(0, propPrefabs.Count)];
+                     Vector3 pos = new Vector3(Random.Range(-4f, 4f), 0, Random.Range(-10f, 10f));
+                     SpawnPrefab(p, parent, pos, Quaternion.AngleAxis(Random.Range(0, 360), Vector3.up));
+                }
+            }
+
+            // 4. Update Player Visuals (T-Pose Fix)
+            ApplyToPlayer();
+        }
+
+        private static void BuildGround(Transform parent)
+        {
+            // Try to find a Terrain or Ground prefab first
+            GameObject groundPrefab = FindAssetByName("Terrain");
+            if (groundPrefab == null) groundPrefab = FindAssetByName("Ground");
+            if (groundPrefab == null) groundPrefab = FindAssetByName("Village_Ground"); // Guessing
+
+            if (groundPrefab != null)
+            {
+                SpawnPrefab(groundPrefab, parent, Vector3.zero, Quaternion.identity);
+            }
+            else
+            {
+                // Fallback: Plane with Grass Texture
+                GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                plane.name = "Ground_Plane";
+                plane.transform.parent = parent;
+                plane.transform.localScale = new Vector3(10, 1, 10); // 100x100m
+
+                Renderer rend = plane.GetComponent<Renderer>();
+                if (rend != null)
+                {
+                    Material grassMat = FindMaterial("Grass");
+                    if (grassMat == null) grassMat = FindMaterial("Ground");
+                    if (grassMat == null) grassMat = FindMaterial("Terrain");
+
+                    if (grassMat != null)
+                    {
+                        rend.material = grassMat;
+                    }
+                    else
+                    {
+                        rend.material.color = new Color(0.3f, 0.6f, 0.2f); // Green
+                    }
+                }
+            }
+        }
+
+        // --- Helper Methods ---
+
+        private static GameObject SpawnPrefab(GameObject prefab, Transform parent, Vector3 pos, Quaternion rot)
+        {
+            if (prefab == null) return null;
+            GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            instance.transform.SetParent(parent, false);
+            instance.transform.position = pos;
+            instance.transform.rotation = rot;
+            return instance;
+        }
+
+        private static List<GameObject> FindPrefabsByKeywords(params string[] keywords)
+        {
+            List<GameObject> results = new List<GameObject>();
+            string[] allGuids = AssetDatabase.FindAssets("t:Prefab");
+
+            foreach (string guid in allGuids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                string name = System.IO.Path.GetFileNameWithoutExtension(path);
+
+                foreach (string keyword in keywords)
+                {
+                    if (name.IndexOf(keyword, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        GameObject go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                        if (go != null && !results.Contains(go))
+                        {
+                            results.Add(go);
+                        }
+                        break; // Found a matching keyword for this asset
+                    }
+                }
+            }
+            return results;
+        }
+
+        private static GameObject FindAssetByName(string partialName)
+        {
+            string[] guids = AssetDatabase.FindAssets(partialName + " t:Prefab"); // Look for prefabs primarily
             if (guids.Length > 0)
             {
                 string path = AssetDatabase.GUIDToAssetPath(guids[0]);
                 return AssetDatabase.LoadAssetAtPath<GameObject>(path);
             }
-
-            // 2. Try looser search (replace underscores with spaces, check contents)
-            if (!forceExact)
-            {
-                string looseName = partialName.Replace("_", " ");
-                string[] allGuids = AssetDatabase.FindAssets("t:GameObject"); // Get all GameObjects
-                foreach (string guid in allGuids)
-                {
-                    string path = AssetDatabase.GUIDToAssetPath(guid);
-                    string fileName = System.IO.Path.GetFileNameWithoutExtension(path);
-
-                    // Case insensitive contains
-                    if (fileName.IndexOf(partialName, System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        fileName.IndexOf(looseName, System.StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        Debug.Log($"Found loose match for '{partialName}': {path}");
-                        return AssetDatabase.LoadAssetAtPath<GameObject>(path);
-                    }
-                }
-            }
-
             return null;
         }
 
-        private static void ApplyToEnvironment(GameObject floorPrefab, GameObject wallS, GameObject wallW, GameObject dFrame, GameObject dDoor, GameObject roof)
+        private static Material FindMaterial(string partialName)
         {
-            // Apply Floor
-            if (floorPrefab != null)
-            {
-                GameObject floorGrid = GameObject.Find("Floor_Grid");
-                if (floorGrid != null)
-                {
-                    foreach (Transform child in floorGrid.transform)
-                    {
-                        GameObject visual = ReplaceVisuals(child.gameObject, floorPrefab, 1.0f);
-                        EnsureMaterial(visual, "Floor_UnevenBrick"); // Attempt to fix missing material
-                    }
-                    Debug.Log("Updated Floor Visuals.");
-                }
-            }
-            else
-            {
-                // Fallback if the floor prefab itself wasn't found (user didn't import it)
-                // Just color the primitives if they exist
-                GameObject floorGrid = GameObject.Find("Floor_Grid");
-                if (floorGrid != null)
-                {
-                    foreach (Transform child in floorGrid.transform)
-                    {
-                        Renderer rend = child.GetComponent<Renderer>();
-                        if (rend != null)
-                        {
-                            rend.material.color = new Color(0.4f, 0.5f, 0.3f); // Green
-                        }
-                    }
-                    Debug.Log("Floor prefab missing. Colored floor tiles green.");
-                }
-            }
-
-            // Construct Houses
-            if (wallS != null && roof != null)
-            {
-                GameObject[] houses = GameObject.FindGameObjectsWithTag("Untagged");
-                int houseCount = 0;
-                foreach (var obj in houses)
-                {
-                    if (obj.name == "House_Placeholder")
-                    {
-                        // Remove placeholder cube
-                        Transform body = obj.transform.Find("House_Body");
-                        if (body != null) GameObject.DestroyImmediate(body.gameObject);
-
-                        ConstructHouse(obj.transform, wallS, wallW, dFrame, dDoor, roof);
-                        houseCount++;
-                    }
-                }
-                if (houseCount > 0) Debug.Log($"Constructed {houseCount} Houses.");
-            }
-        }
-
-        private static void ConstructHouse(Transform parent, GameObject wallS, GameObject wallW, GameObject dFrame, GameObject dDoor, GameObject roof)
-        {
-            // Simple 2x2 House Construction
-            // 0,0 is center. Walls are usually 2m or 4m wide. Quaternius walls are often modular.
-
-            // Clean previous children if any, to avoid duplication on multiple clicks
-            List<GameObject> children = new List<GameObject>();
-            foreach (Transform child in parent) children.Add(child.gameObject);
-            foreach (var child in children) GameObject.DestroyImmediate(child);
-
-            // Create Walls
-            EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(-2, 0, 2), Quaternion.Euler(0, 0, 0)), "Wall_Plaster_Straight"); // Back Left
-            EnsureMaterial(InstantiatePart(wallW, parent, new Vector3(2, 0, 2), Quaternion.Euler(0, 0, 0)), "Wall_Plaster_Window"); // Back Right (Window)
-
-            EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(-2, 0, -2), Quaternion.Euler(0, 180, 0)), "Wall_Plaster_Straight"); // Front Left
-
-            // Doorway
-            if (dFrame != null)
-            {
-                GameObject frame = InstantiatePart(dFrame, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 180, 0));
-                EnsureMaterial(frame, "DoorFrame_Round_WoodDark");
-                if (dDoor != null)
-                {
-                    EnsureMaterial(InstantiatePart(dDoor, frame.transform, Vector3.zero, Quaternion.identity), "Door_1_Round");
-                }
-            }
-            else
-            {
-                EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 180, 0)), "Wall_Plaster_Straight");
-            }
-
-            // Side Walls
-            EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(-2, 0, -2), Quaternion.Euler(0, 270, 0)), "Wall_Plaster_Straight"); // Left Front
-            EnsureMaterial(InstantiatePart(wallW, parent, new Vector3(-2, 0, 2), Quaternion.Euler(0, 270, 0)), "Wall_Plaster_Window"); // Left Back (Window)
-
-            EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(2, 0, 2), Quaternion.Euler(0, 90, 0)), "Wall_Plaster_Straight"); // Right Back
-            EnsureMaterial(InstantiatePart(wallS, parent, new Vector3(2, 0, -2), Quaternion.Euler(0, 90, 0)), "Wall_Plaster_Straight"); // Right Front
-
-            // Roof
-            if (roof != null)
-            {
-                GameObject r = InstantiatePart(roof, parent, new Vector3(0, 4, 0), Quaternion.identity);
-                r.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
-                EnsureMaterial(r, "Roof_RoundTiles_4x4");
-            }
-        }
-
-        private static void EnsureMaterial(GameObject obj, string assetBaseName)
-        {
-            if (obj == null) return;
-            Renderer rend = obj.GetComponentInChildren<Renderer>();
-            if (rend == null) return;
-
-            // If material is missing or default
-            if (rend.sharedMaterial == null || rend.sharedMaterial.name == "Default-Material" || rend.sharedMaterial.name == "Lit" || rend.sharedMaterial.name == "Standard")
-            {
-                string matchedKeyword = "";
-
-                // Keyword matching based on user provided list
-                // Specifics first
-                if (assetBaseName.Contains("UnevenBrick")) matchedKeyword = "UnevenBrick";
-                else if (assetBaseName.Contains("RedBrick")) matchedKeyword = "RedBrick";
-                else if (assetBaseName.Contains("Brick")) matchedKeyword = "Brick"; // Fallback generic brick
-                else if (assetBaseName.Contains("Plaster")) matchedKeyword = "Plaster";
-                else if (assetBaseName.Contains("RoundTiles")) matchedKeyword = "RoundTiles";
-                else if (assetBaseName.Contains("Rock")) matchedKeyword = "RockTrim";
-                else if (assetBaseName.Contains("Vine")) matchedKeyword = "VineLeaf";
-                else if (assetBaseName.Contains("Wood") || assetBaseName.Contains("Door") || assetBaseName.Contains("Window") || assetBaseName.Contains("Stairs")) matchedKeyword = "WoodTrim";
-                else if (assetBaseName.Contains("Roof")) matchedKeyword = "RoundTiles"; // Default roof to tiles if no match
-
-                string textureBaseName = "T_" + matchedKeyword;
-                Texture2D albedo = FindTexture(textureBaseName + "_BaseColor");
-
-                // Try literal fallback if keyword failed
-                if (albedo == null)
-                {
-                     // Try direct mapping just in case
-                     string texturePrefix = assetBaseName.Replace("Floor_", "T_").Replace("Wall_", "T_").Replace("Roof_", "T_");
-                     albedo = FindTexture(texturePrefix + "_BaseColor");
-                }
-
-                if (albedo != null)
-                {
-                    // Create material
-                    Material mat = new Material(Shader.Find("Standard"));
-                    mat.name = "Mat_" + (string.IsNullOrEmpty(matchedKeyword) ? assetBaseName : matchedKeyword);
-                    mat.mainTexture = albedo;
-
-                    // Normal Map
-                    Texture2D normal = FindTexture(textureBaseName + "_Normal");
-                    if (normal != null)
-                    {
-                        mat.SetTexture("_BumpMap", normal);
-                        mat.EnableKeyword("_NORMALMAP");
-                    }
-
-                    rend.sharedMaterial = mat;
-                    Debug.Log($"Created/Assigned material '{mat.name}' to {obj.name}");
-                }
-                else
-                {
-                    // Fallback Green
-                    Material mat = new Material(Shader.Find("Standard"));
-                    mat.color = new Color(0.4f, 0.5f, 0.3f);
-                    rend.sharedMaterial = mat;
-                    Debug.LogWarning($"No texture found for {assetBaseName}, using Green fallback.");
-                }
-            }
-        }
-
-        private static Texture2D FindTexture(string name)
-        {
-            string[] guids = AssetDatabase.FindAssets(name + " t:Texture2D");
-            if (guids.Length > 0)
-            {
+             string[] guids = AssetDatabase.FindAssets(partialName + " t:Material");
+             if (guids.Length > 0)
+             {
                  string path = AssetDatabase.GUIDToAssetPath(guids[0]);
-                 return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                 return AssetDatabase.LoadAssetAtPath<Material>(path);
+             }
+             return null;
+        }
+
+        // --- Player T-Pose & Hair Fixes (Preserved) ---
+
+        public static void ApplyToPlayer()
+        {
+            // Hardcoded names from user's provided assets
+            GameObject bodyPrefab = FindAssetByName("Superhero_Male_FullBody"); // Likely FBX, not prefab, but LoadAsset works
+            if (bodyPrefab == null) bodyPrefab = FindModel("Superhero_Male_FullBody"); // Fallback to model search
+
+            GameObject hairPrefab = FindAssetByName("Hair_Buzzed");
+            if (hairPrefab == null) hairPrefab = FindModel("Hair_Buzzed");
+
+            GameObject eyebrowsPrefab = FindAssetByName("Eyebrows_Regular");
+            if (eyebrowsPrefab == null) eyebrowsPrefab = FindModel("Eyebrows_Regular");
+
+            if (bodyPrefab == null)
+            {
+                Debug.LogWarning("Superhero model not found. Skipping player visual update.");
+                return;
             }
-            return null;
-        }
-
-        private static GameObject InstantiatePart(GameObject prefab, Transform parent, Vector3 pos, Quaternion rot)
-        {
-            if (prefab == null) return null;
-            GameObject part = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-            part.transform.SetParent(parent, false);
-            part.transform.localPosition = pos;
-            part.transform.localRotation = rot;
-            return part;
-        }
-
-        private static void ApplyToPlayer(GameObject bodyPrefab, GameObject hairPrefab, GameObject eyebrowsPrefab)
-        {
-            if (bodyPrefab == null) return;
 
             PlayerController player = GameObject.FindObjectOfType<PlayerController>();
             if (player != null)
@@ -277,7 +192,6 @@ namespace JRPG.Editor
                 if (visual != null)
                 {
                     Transform headBone = FindDeepChild(visual.transform, "Head");
-                    // Fallback for Mixamo or other rig naming conventions
                     if (headBone == null) headBone = FindDeepChild(visual.transform, "mixamorig:Head");
                     if (headBone == null) headBone = FindDeepChild(visual.transform, "Bip01 Head");
 
@@ -287,10 +201,8 @@ namespace JRPG.Editor
                         {
                             GameObject hair = (GameObject)PrefabUtility.InstantiatePrefab(hairPrefab);
                             hair.transform.SetParent(headBone, false);
-                            hair.transform.localPosition = Vector3.zero; // Reset position relative to bone
+                            hair.transform.localPosition = Vector3.zero;
                             hair.transform.localRotation = Quaternion.identity;
-
-                            // Adjust scale if necessary, though 1,1,1 is standard
                             hair.transform.localScale = Vector3.one;
                         }
                         if (eyebrowsPrefab != null)
@@ -301,101 +213,117 @@ namespace JRPG.Editor
                             brows.transform.localRotation = Quaternion.identity;
                         }
                     }
-                    else
-                    {
-                        Debug.LogWarning("Could not find 'Head' bone (checked standard, mixamo, Bip01). Hair might be misplaced.");
-                    }
-
-                    // 3. Attach Animator Helper
-                    Animator anim = visual.GetComponent<Animator>();
-                    if (anim)
-                    {
-                        if (visual.GetComponent<PlayerAnimator>() == null)
-                        {
-                            visual.AddComponent<PlayerAnimator>();
-                        }
-
-                        // 4. Setup Controller to fix T-Pose
-                        SetupPlayerAnimatorController(anim);
-                    }
                 }
 
-                Debug.Log("Updated Player Visuals.");
+                // 3. Setup Animator
+                Animator anim = visual != null ? visual.GetComponent<Animator>() : null;
+                if (anim)
+                {
+                    if (visual.GetComponent<PlayerAnimator>() == null) visual.AddComponent<PlayerAnimator>();
+                    SetupPlayerAnimatorController(anim);
+                }
             }
+        }
+
+        private static GameObject FindModel(string name)
+        {
+            string[] guids = AssetDatabase.FindAssets(name + " t:Model");
+            if (guids.Length > 0)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guids[0]);
+                return AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            }
+            return null;
+        }
+
+        private static GameObject ReplaceVisuals(GameObject target, GameObject newModelPrefab, float scale)
+        {
+            // Cleanup old
+            List<GameObject> toDestroy = new List<GameObject>();
+            foreach (Transform child in target.transform)
+            {
+                if (child.name.Contains("(Clone)") || child.GetComponent<Animator>())
+                {
+                     toDestroy.Add(child.gameObject);
+                }
+            }
+            foreach (var go in toDestroy) GameObject.DestroyImmediate(go);
+
+            foreach (var rend in target.GetComponentsInChildren<MeshRenderer>())
+                if (rend.gameObject == target) GameObject.DestroyImmediate(rend);
+            foreach (var filter in target.GetComponentsInChildren<MeshFilter>())
+                if (filter.gameObject == target) GameObject.DestroyImmediate(filter);
+
+            // Instantiate
+            GameObject visual = (GameObject)PrefabUtility.InstantiatePrefab(newModelPrefab);
+            visual.transform.SetParent(target.transform, false);
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localRotation = Quaternion.identity;
+            visual.transform.localScale = Vector3.one * scale;
+
+            return visual;
+        }
+
+        private static Transform FindDeepChild(Transform aParent, string aName)
+        {
+            foreach(Transform child in aParent)
+            {
+                if(child.name == aName ) return child;
+                Transform result = FindDeepChild(child, aName);
+                if (result != null) return result;
+            }
+            return null;
         }
 
         private static void SetupPlayerAnimatorController(Animator animator)
         {
-            // Always try to load or create the controller to ensure it's assigned
             string controllerPath = "Assets/PlayerController_Generated.controller";
             AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
 
             if (controller == null)
             {
                 controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
-
-                // Add Parameters
                 controller.AddParameter("IsMoving", AnimatorControllerParameterType.Bool);
                 controller.AddParameter("InputX", AnimatorControllerParameterType.Float);
                 controller.AddParameter("InputY", AnimatorControllerParameterType.Float);
 
-                // Find Animations
                 AnimationClip idleClip = FindAnimationClip("Idle");
                 AnimationClip runClip = FindAnimationClip("Run");
                 if (runClip == null) runClip = FindAnimationClip("Walk");
 
-                // Add States
                 AnimatorStateMachine rootStateMachine = controller.layers[0].stateMachine;
-
-                // Idle State
                 AnimatorState idleState = rootStateMachine.AddState("Idle");
                 idleState.motion = idleClip;
 
-                // Movement State (Blend Tree)
                 if (runClip != null)
                 {
                     AnimatorState moveState = rootStateMachine.AddState("Movement");
 
-                    // Manually create Blend Tree
                     BlendTree blendTree = new BlendTree();
                     blendTree.name = "Movement Blend Tree";
                     moveState.motion = blendTree;
-
-                    // Must add the blend tree asset to the controller so it persists
                     AssetDatabase.AddObjectToAsset(blendTree, controller);
 
-                    // Let's do 2D Freeform Cartesian for X/Y
                     blendTree.blendType = BlendTreeType.SimpleDirectional2D;
                     blendTree.blendParameter = "InputX";
                     blendTree.blendParameterY = "InputY";
 
-                    // Add motions to blend tree
-                    blendTree.AddChild(runClip, new Vector2(0, 1)); // Forward
-                    blendTree.AddChild(runClip, new Vector2(0, -1)); // Back
-                    blendTree.AddChild(runClip, new Vector2(-1, 0)); // Left
-                    blendTree.AddChild(runClip, new Vector2(1, 0)); // Right
+                    blendTree.AddChild(runClip, new Vector2(0, 1));
+                    blendTree.AddChild(runClip, new Vector2(0, -1));
+                    blendTree.AddChild(runClip, new Vector2(-1, 0));
+                    blendTree.AddChild(runClip, new Vector2(1, 0));
 
-                    // Transitions
-                    AnimatorStateTransition toMove = idleState.AddTransition(moveState);
+                    var toMove = idleState.AddTransition(moveState);
                     toMove.AddCondition(AnimatorConditionMode.If, 0, "IsMoving");
                     toMove.duration = 0.1f;
 
-                    AnimatorStateTransition toIdle = moveState.AddTransition(idleState);
+                    var toIdle = moveState.AddTransition(idleState);
                     toIdle.AddCondition(AnimatorConditionMode.IfNot, 0, "IsMoving");
                     toIdle.duration = 0.1f;
                 }
-                else
-                {
-                    Debug.LogWarning("Could not find 'Run' or 'Walk' animation clips. Movement state will not work.");
-                }
-
-                Debug.Log($"Created AnimatorController at {controllerPath}");
             }
 
-            // Force assignment
             animator.runtimeAnimatorController = controller;
-
-            // Rebind to ensure the Animator picks up the new controller immediately
             animator.Rebind();
         }
 
@@ -408,52 +336,6 @@ namespace JRPG.Editor
                 return AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
             }
             return null;
-        }
-
-        private static Transform FindDeepChild(Transform aParent, string aName)
-        {
-            foreach(Transform child in aParent)
-            {
-                if(child.name == aName )
-                    return child;
-                Transform result = FindDeepChild(child, aName);
-                if (result != null)
-                    return result;
-            }
-            return null;
-        }
-
-        private static GameObject ReplaceVisuals(GameObject target, GameObject newModelPrefab, float scale)
-        {
-            // Remove old primitives
-            foreach (var rend in target.GetComponentsInChildren<MeshRenderer>())
-            {
-                if (rend.gameObject == target) GameObject.DestroyImmediate(rend);
-            }
-            foreach (var filter in target.GetComponentsInChildren<MeshFilter>())
-            {
-                 if (filter.gameObject == target) GameObject.DestroyImmediate(filter);
-            }
-
-            // Remove old visual child if exists (prevent accumulation)
-            List<GameObject> toDestroy = new List<GameObject>();
-            foreach (Transform child in target.transform)
-            {
-                if (child.name.Contains("(Clone)") || child.GetComponent<Animator>())
-                {
-                     toDestroy.Add(child.gameObject);
-                }
-            }
-            foreach (var go in toDestroy) GameObject.DestroyImmediate(go);
-
-            // Instantiate new model
-            GameObject visual = (GameObject)PrefabUtility.InstantiatePrefab(newModelPrefab);
-            visual.transform.SetParent(target.transform, false);
-            visual.transform.localPosition = Vector3.zero;
-            visual.transform.localRotation = Quaternion.identity;
-            visual.transform.localScale = Vector3.one * scale;
-
-            return visual;
         }
     }
 }
