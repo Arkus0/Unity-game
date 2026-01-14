@@ -186,36 +186,64 @@ namespace JRPG.Editor
             if (rend == null) return;
 
             // If material is missing or default
-            if (rend.sharedMaterial == null || rend.sharedMaterial.name == "Default-Material" || rend.sharedMaterial.name == "Lit")
+            if (rend.sharedMaterial == null || rend.sharedMaterial.name == "Default-Material" || rend.sharedMaterial.name == "Lit" || rend.sharedMaterial.name == "Standard")
             {
-                // Try to find textures matching the pattern "T_<BaseName>_BaseColor" etc
-                // Example: Floor_UnevenBrick -> T_UnevenBrick_BaseColor
-                string texturePrefix = assetBaseName.Replace("Floor_", "T_").Replace("Wall_", "T_").Replace("Roof_", "T_");
-                // Or try simpler heuristics if prefix mismatch
-                if (!texturePrefix.StartsWith("T_")) texturePrefix = "T_" + assetBaseName;
+                string matchedKeyword = "";
 
-                Texture2D albedo = FindTexture(texturePrefix + "_BaseColor");
-                if (albedo == null) albedo = FindTexture(texturePrefix + "BaseColor");
+                // Keyword matching based on user provided list
+                // Specifics first
+                if (assetBaseName.Contains("UnevenBrick")) matchedKeyword = "UnevenBrick";
+                else if (assetBaseName.Contains("RedBrick")) matchedKeyword = "RedBrick";
+                else if (assetBaseName.Contains("Brick")) matchedKeyword = "Brick"; // Fallback generic brick
+                else if (assetBaseName.Contains("Plaster")) matchedKeyword = "Plaster";
+                else if (assetBaseName.Contains("RoundTiles")) matchedKeyword = "RoundTiles";
+                else if (assetBaseName.Contains("Rock")) matchedKeyword = "RockTrim";
+                else if (assetBaseName.Contains("Vine")) matchedKeyword = "VineLeaf";
+                else if (assetBaseName.Contains("Wood") || assetBaseName.Contains("Door") || assetBaseName.Contains("Window") || assetBaseName.Contains("Stairs")) matchedKeyword = "WoodTrim";
+                else if (assetBaseName.Contains("Roof")) matchedKeyword = "RoundTiles"; // Default roof to tiles if no match
 
-                // If specific texture not found, maybe generic?
-                if (albedo == null && assetBaseName.Contains("UnevenBrick")) albedo = FindTexture("T_UnevenBrick_BaseColor");
+                string textureBaseName = "T_" + matchedKeyword;
+                Texture2D albedo = FindTexture(textureBaseName + "_BaseColor");
+
+                // Try literal fallback if keyword failed
+                if (albedo == null)
+                {
+                     // Try direct mapping just in case
+                     string texturePrefix = assetBaseName.Replace("Floor_", "T_").Replace("Wall_", "T_").Replace("Roof_", "T_");
+                     albedo = FindTexture(texturePrefix + "_BaseColor");
+                }
 
                 if (albedo != null)
                 {
                     // Create material
                     Material mat = new Material(Shader.Find("Standard"));
-                    mat.name = "Mat_" + assetBaseName;
+                    mat.name = "Mat_" + (string.IsNullOrEmpty(matchedKeyword) ? assetBaseName : matchedKeyword);
                     mat.mainTexture = albedo;
 
-                    Texture2D normal = FindTexture(texturePrefix + "_Normal");
+                    // Normal Map
+                    Texture2D normal = FindTexture(textureBaseName + "_Normal");
                     if (normal != null)
                     {
                         mat.SetTexture("_BumpMap", normal);
                         mat.EnableKeyword("_NORMALMAP");
                     }
 
+                    // ORM / Roughness
+                    // Standard Shader uses _MetallicGlossMap (Metallic = R, Smoothness = A) and _OcclusionMap (G)
+                    // Quaternius ORM is likely Occlusion(R), Roughness(G), Metallic(B)
+                    // Or standard glTF ORM. Without a custom shader, we can map Roughness to Albedo Alpha or similar?
+                    // For now, let's just try to assign Roughness to _Parallax or just skip to avoid weirdness.
+                    // Actually, let's check for _Roughness standalone
+                    Texture2D rough = FindTexture(textureBaseName + "_Roughness");
+                    if (rough != null)
+                    {
+                        // In Standard shader, smoothnes is alpha of Metallic or Albedo.
+                        // We can't easily invert roughness to smoothness in runtime without pixel manipulation.
+                        // We will skip roughness for this demo setup to keep it simple and performant.
+                    }
+
                     rend.sharedMaterial = mat;
-                    Debug.Log($"Created and assigned material for {obj.name} using texture {albedo.name}");
+                    Debug.Log($"Created/Assigned material '{mat.name}' to {obj.name}");
                 }
                 else
                 {
@@ -223,6 +251,7 @@ namespace JRPG.Editor
                     Material mat = new Material(Shader.Find("Standard"));
                     mat.color = new Color(0.4f, 0.5f, 0.3f);
                     rend.sharedMaterial = mat;
+                    Debug.LogWarning($"No texture found for {assetBaseName}, using Green fallback.");
                 }
             }
         }
