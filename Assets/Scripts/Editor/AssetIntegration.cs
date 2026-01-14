@@ -10,15 +10,9 @@ namespace JRPG.Editor
         [MenuItem("Tools/JRPG/Apply Quaternius Assets")]
         public static void ApplyAssets()
         {
-            // Try to find typical model names from the pack
-            // Note: The user might rename folders, so we search by asset name.
-            // Common names in Quaternius packs: "Warrior", "Mage", "Rogue", "Skeleton", "Slime" etc.
-            // Since the specific pack is "Modular Character Outfits", files might be named differently.
-            // We will search for generic types and ask the user to confirm if not found,
-            // but for automation we try to find *any* suitable model.
-
-            GameObject playerModel = FindAssetByName("Warrior_Male"); // Example name
-            if (playerModel == null) playerModel = FindAssetByName("Human_Male"); // Fallback
+            // --- Characters ---
+            GameObject playerModel = FindAssetByName("Warrior_Male");
+            if (playerModel == null) playerModel = FindAssetByName("Human_Male");
 
             GameObject enemyModel = FindAssetByName("Skeleton");
             if (enemyModel == null) enemyModel = FindAssetByName("Monster");
@@ -26,17 +20,31 @@ namespace JRPG.Editor
             GameObject npcModel = FindAssetByName("Civilian_Male");
             if (npcModel == null) npcModel = FindAssetByName("Human_Female");
 
-            if (playerModel == null && enemyModel == null && npcModel == null)
+            // --- Environment ---
+            // Generic names that might be in the Medieval Village pack
+            GameObject floorModel = FindAssetByName("Floor_Stone");
+            if (floorModel == null) floorModel = FindAssetByName("Ground_Grass");
+
+            GameObject houseModel = FindAssetByName("House_Type1");
+            if (houseModel == null) houseModel = FindAssetByName("House_Small");
+
+
+            // Check if we found at least something
+            if (playerModel == null && floorModel == null)
             {
                 EditorUtility.DisplayDialog("Assets Not Found",
-                    "Could not auto-detect specific Quaternius models (Warrior, Skeleton, Civilian). \n\n" +
-                    "Make sure you have imported the FBX files into your Assets folder.", "OK");
+                    "Could not auto-detect Quaternius models.\n\n" +
+                    "Make sure you have imported 'Modular Character Outfits' and/or 'Medieval Village MegaKit'.", "OK");
                 return;
             }
 
+            // Apply Characters
             ApplyToPlayer(playerModel);
             ApplyToEnemy(enemyModel);
             ApplyToNPCs(npcModel);
+
+            // Apply Environment
+            ApplyToEnvironment(floorModel, houseModel);
 
             Debug.Log("Asset Integration Complete!");
         }
@@ -52,6 +60,44 @@ namespace JRPG.Editor
             return null;
         }
 
+        private static void ApplyToEnvironment(GameObject floorPrefab, GameObject housePrefab)
+        {
+            // Apply Floor
+            if (floorPrefab != null)
+            {
+                GameObject floorGrid = GameObject.Find("Floor_Grid");
+                if (floorGrid != null)
+                {
+                    foreach (Transform child in floorGrid.transform)
+                    {
+                        ReplaceVisuals(child.gameObject, floorPrefab, 1.0f);
+                    }
+                    Debug.Log("Updated Floor Visuals.");
+                }
+            }
+
+            // Apply Houses
+            if (housePrefab != null)
+            {
+                GameObject[] houses = GameObject.FindGameObjectsWithTag("Untagged"); // We find by name manually
+                foreach (var obj in houses)
+                {
+                    if (obj.name == "House_Placeholder")
+                    {
+                        // The placeholder has a child "House_Body" which is the cube.
+                        // We want to replace the whole "House_Body" with the prefab.
+                        Transform body = obj.transform.Find("House_Body");
+                        if (body != null)
+                        {
+                            ReplaceVisuals(obj, housePrefab, 1.0f);
+                            GameObject.DestroyImmediate(body.gameObject);
+                        }
+                    }
+                }
+                Debug.Log("Updated House Visuals.");
+            }
+        }
+
         private static void ApplyToPlayer(GameObject modelPrefab)
         {
             if (modelPrefab == null) return;
@@ -59,7 +105,7 @@ namespace JRPG.Editor
             PlayerController player = GameObject.FindObjectOfType<PlayerController>();
             if (player != null)
             {
-                GameObject visual = ReplaceVisuals(player.gameObject, modelPrefab, 1.0f); // Default scale
+                GameObject visual = ReplaceVisuals(player.gameObject, modelPrefab, 1.0f);
 
                 // Attach Animator Helper
                 if (visual.GetComponent<Animator>())
@@ -103,16 +149,21 @@ namespace JRPG.Editor
             // 1. Remove old mesh renderer/filter components (primitives)
             foreach (var rend in target.GetComponentsInChildren<MeshRenderer>())
             {
-                GameObject.DestroyImmediate(rend);
+                // Don't destroy if it's not the target itself (unless it's a primitive child we want to clear)
+                // But for Character capsules, the renderer is on the object.
+                // For Floor tiles, it is on the object.
+                if (rend.gameObject == target)
+                {
+                    GameObject.DestroyImmediate(rend);
+                }
             }
             foreach (var filter in target.GetComponentsInChildren<MeshFilter>())
             {
-                GameObject.DestroyImmediate(filter);
+                 if (filter.gameObject == target)
+                 {
+                    GameObject.DestroyImmediate(filter);
+                 }
             }
-
-            // Also destroy any child objects that might be visual placeholders
-            // (careful not to destroy scripts or logic, but primitives usually don't have children unless complex)
-            // Ideally, we instantiate the model as a child.
 
             // 2. Instantiate new model as child
             GameObject visual = (GameObject)PrefabUtility.InstantiatePrefab(newModelPrefab);
@@ -120,17 +171,6 @@ namespace JRPG.Editor
             visual.transform.localPosition = Vector3.zero;
             visual.transform.localRotation = Quaternion.identity;
             visual.transform.localScale = Vector3.one * scale;
-
-            // 3. Adjust Collider if necessary
-            // (For now we keep the existing primitive collider on the parent)
-
-            // 4. Handle Animator
-            Animator anim = visual.GetComponent<Animator>();
-            if (anim != null)
-            {
-                // If we had a controller, we would assign it here.
-                // anim.runtimeAnimatorController = ...
-            }
 
             return visual;
         }

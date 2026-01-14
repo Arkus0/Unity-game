@@ -44,8 +44,9 @@ Para que no empieces con una pantalla vacía, hemos creado una herramienta autom
 
 1.  En el menú superior de Unity, busca la nueva pestaña: `Tools`.
 2.  Selecciona `JRPG` > `Create 3D Test Scene`.
-3.  ¡Listo! Verás que aparecen varios objetos en tu escena:
-    *   **Floor:** Un suelo gris.
+3.  ¡Listo! Verás que aparece una **pequeña aldea** con:
+    *   **Floor Grid:** Baldosas de suelo.
+    *   **Houses:** Bloques marrones simulando casas.
     *   **Player:** Una cápsula azul (Tu personaje).
     *   **Enemy_Slime:** Un cubo rojo (Un enemigo).
     *   **Villager:** Cilindros verdes (NPCs para hablar).
@@ -53,17 +54,19 @@ Para que no empieces con una pantalla vacía, hemos creado una herramienta autom
 
 ---
 
-## 4. Importar Modelos 3D (Quaternius Assets)
+## 4. Importar Assets de Quaternius
 
-Si quieres usar los personajes del pack *Modular Character Outfits*:
+Si quieres usar los modelos del pack *Modular Character Outfits* y *Medieval Village MegaKit*:
 
-1.  Descarga el pack desde la web de Quaternius.
-2.  Descomprime el archivo y busca la carpeta con los modelos `.fbx`.
-3.  Arrastra esa carpeta dentro de `Assets` en tu Unity.
-    *   *Recomendación:* Llámala `QuaterniusModels` para tenerlo ordenado.
+1.  Descarga los packs desde la web de Quaternius (versión FBX recomendada).
+2.  Descomprime los archivos y busca las carpetas con los modelos `.fbx`.
+3.  Arrastra esas carpetas dentro de `Assets` en tu Unity.
 4.  Asegúrate de que tienes la **Escena de Prueba** abierta.
 5.  Ve al menú superior: `Tools` > `JRPG` > `Apply Quaternius Assets`.
-6.  El script intentará buscar automáticamente modelos llamados "Warrior", "Monster", "Civilian", etc. y reemplazará las cápsulas de colores por estos personajes.
+6.  El script intentará buscar automáticamente modelos para:
+    *   Personajes: "Warrior", "Monster", "Civilian".
+    *   Entorno: "Floor_Stone", "House_Type1".
+    *   *Nota:* Si el script no encuentra los modelos, intentará usar nombres genéricos. Si aun así falla, revisa que los archivos .fbx estén importados correctamente en la carpeta Assets.
 
 ---
 
