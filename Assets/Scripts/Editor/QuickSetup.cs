@@ -13,13 +13,15 @@ namespace JRPG.Editor
         {
             // 1. Setup Environment (Village Grid)
             CreateVillageEnvironment();
-            SetupCamera();
 
             // 2. Create Encounter Manager
             CreateEncounterManager();
 
             // 3. Create Player (Capsule)
             GameObject player = CreatePlayer();
+
+            // Setup Camera to follow Player
+            SetupCamera(player.transform);
 
             // 4. Create Enemy (Red Cube) near the forest edge
             CreateEnemy(new Vector3(8, 1, 8));
@@ -74,7 +76,7 @@ namespace JRPG.Editor
             if (rend != null) rend.material.color = new Color(0.6f, 0.4f, 0.2f); // Brown
         }
 
-        private static void SetupCamera()
+        private static void SetupCamera(Transform target)
         {
             Camera cam = Camera.main;
             if (cam == null)
@@ -84,9 +86,18 @@ namespace JRPG.Editor
                 camObj.tag = "MainCamera";
             }
 
-            // Top-down view
-            cam.transform.position = new Vector3(0, 15, -12);
-            cam.transform.rotation = Quaternion.Euler(55, 0, 0);
+            // Add CameraFollow script
+            CameraFollow follow = cam.gameObject.GetComponent<CameraFollow>();
+            if (follow == null) follow = cam.gameObject.AddComponent<CameraFollow>();
+
+            follow.target = target;
+
+            // Initial position based on default offset
+            if (target != null)
+            {
+                cam.transform.position = target.position + follow.offset;
+                cam.transform.LookAt(target);
+            }
         }
 
         private static void CreateEncounterManager()
