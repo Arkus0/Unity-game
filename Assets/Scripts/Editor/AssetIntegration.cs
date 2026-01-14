@@ -86,9 +86,42 @@ namespace JRPG.Editor
                 {
                     foreach (Transform child in floorGrid.transform)
                     {
-                        ReplaceVisuals(child.gameObject, floorPrefab, 1.0f);
+                        GameObject visual = ReplaceVisuals(child.gameObject, floorPrefab, 1.0f);
+                        // Fix for missing textures: Check renderer
+                        if (visual != null)
+                        {
+                            Renderer rend = visual.GetComponentInChildren<Renderer>();
+                            if (rend != null && rend.sharedMaterial == null)
+                            {
+                                // Material missing entirely, assign a default
+                                rend.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Default-Material.mat");
+                                if (rend.sharedMaterial == null)
+                                    rend.sharedMaterial = new Material(Shader.Find("Standard"));
+
+                                rend.sharedMaterial.color = new Color(0.4f, 0.5f, 0.3f); // Grass green fallback
+                                Debug.LogWarning($"Material missing on {visual.name}, assigned fallback green.");
+                            }
+                        }
                     }
                     Debug.Log("Updated Floor Visuals.");
+                }
+            }
+            else
+            {
+                // Fallback if the floor prefab itself wasn't found (user didn't import it)
+                // Just color the primitives if they exist
+                GameObject floorGrid = GameObject.Find("Floor_Grid");
+                if (floorGrid != null)
+                {
+                    foreach (Transform child in floorGrid.transform)
+                    {
+                        Renderer rend = child.GetComponent<Renderer>();
+                        if (rend != null)
+                        {
+                            rend.material.color = new Color(0.4f, 0.5f, 0.3f); // Green
+                        }
+                    }
+                    Debug.Log("Floor prefab missing. Colored floor tiles green.");
                 }
             }
 
@@ -261,8 +294,14 @@ namespace JRPG.Editor
                 {
                     AnimatorState moveState = rootStateMachine.AddState("Movement");
 
-                    BlendTree blendTree;
-                    controller.CreateBlendTreeInState("Movement Blend Tree", moveState, out blendTree);
+                    // Manually create Blend Tree
+                    BlendTree blendTree = new BlendTree();
+                    blendTree.name = "Movement Blend Tree";
+                    moveState.motion = blendTree;
+
+                    // Must add the blend tree asset to the controller so it persists
+                    AssetDatabase.AddObjectToAsset(blendTree, controller);
+
                     // Let's do 2D Freeform Cartesian for X/Y
                     blendTree.blendType = BlendTreeType.SimpleDirectional2D;
                     blendTree.blendParameter = "InputX";
