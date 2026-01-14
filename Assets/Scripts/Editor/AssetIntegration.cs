@@ -228,20 +228,6 @@ namespace JRPG.Editor
                         mat.EnableKeyword("_NORMALMAP");
                     }
 
-                    // ORM / Roughness
-                    // Standard Shader uses _MetallicGlossMap (Metallic = R, Smoothness = A) and _OcclusionMap (G)
-                    // Quaternius ORM is likely Occlusion(R), Roughness(G), Metallic(B)
-                    // Or standard glTF ORM. Without a custom shader, we can map Roughness to Albedo Alpha or similar?
-                    // For now, let's just try to assign Roughness to _Parallax or just skip to avoid weirdness.
-                    // Actually, let's check for _Roughness standalone
-                    Texture2D rough = FindTexture(textureBaseName + "_Roughness");
-                    if (rough != null)
-                    {
-                        // In Standard shader, smoothnes is alpha of Metallic or Albedo.
-                        // We can't easily invert roughness to smoothness in runtime without pixel manipulation.
-                        // We will skip roughness for this demo setup to keep it simple and performant.
-                    }
-
                     rend.sharedMaterial = mat;
                     Debug.Log($"Created/Assigned material '{mat.name}' to {obj.name}");
                 }
