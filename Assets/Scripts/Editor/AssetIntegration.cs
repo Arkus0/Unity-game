@@ -59,7 +59,17 @@ namespace JRPG.Editor
             PlayerController player = GameObject.FindObjectOfType<PlayerController>();
             if (player != null)
             {
-                ReplaceVisuals(player.gameObject, modelPrefab, 1.0f); // Default scale
+                GameObject visual = ReplaceVisuals(player.gameObject, modelPrefab, 1.0f); // Default scale
+
+                // Attach Animator Helper
+                if (visual.GetComponent<Animator>())
+                {
+                    if (visual.GetComponent<PlayerAnimator>() == null)
+                    {
+                        visual.AddComponent<PlayerAnimator>();
+                    }
+                }
+
                 Debug.Log("Updated Player Visuals.");
             }
         }
@@ -88,7 +98,7 @@ namespace JRPG.Editor
             if (npcs.Length > 0) Debug.Log("Updated NPC Visuals.");
         }
 
-        private static void ReplaceVisuals(GameObject target, GameObject newModelPrefab, float scale)
+        private static GameObject ReplaceVisuals(GameObject target, GameObject newModelPrefab, float scale)
         {
             // 1. Remove old mesh renderer/filter components (primitives)
             foreach (var rend in target.GetComponentsInChildren<MeshRenderer>())
@@ -121,6 +131,8 @@ namespace JRPG.Editor
                 // If we had a controller, we would assign it here.
                 // anim.runtimeAnimatorController = ...
             }
+
+            return visual;
         }
     }
 }

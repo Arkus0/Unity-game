@@ -64,11 +64,26 @@ Si quieres usar los personajes del pack *Modular Character Outfits*:
 4.  Asegúrate de que tienes la **Escena de Prueba** abierta.
 5.  Ve al menú superior: `Tools` > `JRPG` > `Apply Quaternius Assets`.
 6.  El script intentará buscar automáticamente modelos llamados "Warrior", "Monster", "Civilian", etc. y reemplazará las cápsulas de colores por estos personajes.
-    *   *Nota:* Si el script no encuentra los modelos exactos, te avisará. En ese caso, puedes asignar los modelos manualmente arrastrándolos sobre los objetos en la jerarquía.
 
 ---
 
-## 5. Ajustes Finales Manuales
+## 5. Configuración de Animaciones
+
+El script añade automáticamente un componente `PlayerAnimator` al jugador, pero necesitas crear el **Controlador de Animación**.
+
+1.  En la carpeta Assets, haz clic derecho > `Create` > `Animator Controller`. Llámalo `PlayerAnim`.
+2.  Abre la ventana **Animator**.
+3.  Crea dos parámetros (pestaña Parameters):
+    *   `IsMoving` (Bool)
+    *   `InputX` (Float)
+    *   `InputY` (Float)
+4.  Arrastra tus animaciones (Idle, Run) al Animator.
+5.  Crea transiciones entre Idle y Run usando la condición `IsMoving` (true para correr, false para parar).
+6.  Asigna este `PlayerAnim` al componente `Animator` de tu personaje (el modelo visual hijo del objeto Player).
+
+---
+
+## 6. Ajustes Finales Manuales
 
 Después de generar la escena, verifica estos puntos para asegurar que todo funcione perfecto:
 
@@ -79,7 +94,6 @@ Después de generar la escena, verifica estos puntos para asegurar que todo func
 4.  Marca:
     *   ✅ Freeze Rotation X
     *   ✅ Freeze Rotation Z
-    *   *(Esto evita que el personaje se caiga de cara al chocar con algo)*.
 5.  Asegúrate de que en la parte superior del Inspector, el **Tag** sea `Player`.
 6.  En el componente `Player Controller (Script)`:
     *   Busca `Interact Layer`.
@@ -88,36 +102,27 @@ Después de generar la escena, verifica estos puntos para asegurar que todo func
 ### Los NPCs (Villager)
 1.  Selecciona los objetos `Villager`.
 2.  Arriba a la derecha en el Inspector, cambia su **Layer** a `Interactable`.
-    *   Unity te preguntará si quieres cambiar también a los hijos. Di que **Sí**.
 3.  Si quieres cambiar lo que dicen, busca el script `NPC` y edita el texto en `Dialogue Text`.
 
 ---
 
-## 6. Controles y Cómo Jugar
+## 7. Controles y Cómo Jugar
 
 Dale al botón **Play** (▶) en la parte superior central.
 
 *   **Movimiento:** Usa `W`, `A`, `S`, `D` o las `Flechas` del teclado.
 *   **Interactuar:** Acércate a un NPC (Verde) y pulsa la tecla `E` o `Espacio`.
-    *   *Resultado:* Verás el mensaje de diálogo en la consola de Unity (abajo a la izquierda).
 *   **Combatir:** Camina hacia el enemigo (Rojo) y tócalo.
-    *   *Resultado:* El enemigo desaparecerá y la consola dirá "Starting Battle...".
 
 ---
 
 ## Solución de Problemas Comunes
 
+**P: Mi personaje no se anima.**
+R: Asegúrate de haber creado el `Animator Controller` como se explica en la sección 5 y haberlo asignado al campo `Controller` dentro del componente `Animator` del modelo visual.
+
 **P: Mi personaje atraviesa el suelo.**
-R: Asegúrate de que el objeto `Floor` tiene un `Mesh Collider` (o `Box Collider`) y el `Player` tiene un `Capsule Collider`.
+R: Asegúrate de que el objeto `Floor` tiene un `Mesh Collider`.
 
 **P: El personaje se tumba o rueda.**
-R: Revisa las `Constraints` del `Rigidbody` en el Player. Debes congelar la rotación en X y Z.
-
-**P: Pulso 'E' pero no habla con el NPC.**
-R:
-1. Revisa que el NPC tenga la Layer `Interactable`.
-2. Revisa que el `PlayerController` tenga marcada esa misma Layer en `Interact Layer`.
-3. Asegúrate de estar lo suficientemente cerca y mirando hacia el NPC.
-
-**P: Los modelos de Quaternius se ven rosas.**
-R: Eso significa que falta el Material o el Shader. Normalmente Unity los importa bien, pero si pasa, crea un nuevo Material, asígnalo al modelo y ponle un color o textura.
+R: Revisa las `Constraints` del `Rigidbody` en el Player.
