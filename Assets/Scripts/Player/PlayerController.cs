@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem; // New Input System
 using JRPG.Interaction;
 using JRPG.Systems;
 
@@ -12,22 +13,60 @@ namespace JRPG.Player
 
         [Header("Interaction Settings")]
         [SerializeField] private float interactDistance = 1f;
-        [SerializeField] private LayerMask interactLayer = ~0; // Default to 'Everything' for easier testing
+        [SerializeField] private LayerMask interactLayer = ~0;
 
         private Rigidbody rb;
         private Vector3 movementInput;
-        private Vector3 lastMovedDirection; // Useful for interactions (facing direction)
+        private Vector3 lastMovedDirection;
+
+        // Input Actions defined in code to avoid Asset dependency
+        private InputAction moveAction;
+        private InputAction interactAction;
 
         private void Awake()
         {
             rb = GetComponent<Rigidbody>();
-            // Default facing direction (Back/South in 3D usually)
             lastMovedDirection = Vector3.back;
+
+            SetupInput();
+        }
+
+        private void SetupInput()
+        {
+            // Define Movement Action (WASD + Arrows)
+            moveAction = new InputAction("Move", binding: "<Gamepad>/leftStick");
+            moveAction.AddCompositeBinding("Dpad")
+                .With("Up", "<Keyboard>/w")
+                .With("Up", "<Keyboard>/upArrow")
+                .With("Down", "<Keyboard>/s")
+                .With("Down", "<Keyboard>/downArrow")
+                .With("Left", "<Keyboard>/a")
+                .With("Left", "<Keyboard>/leftArrow")
+                .With("Right", "<Keyboard>/d")
+                .With("Right", "<Keyboard>/rightArrow");
+
+            // Define Interact Action (E, Space, Gamepad South)
+            interactAction = new InputAction("Interact", binding: "<Keyboard>/e");
+            interactAction.AddBinding("<Keyboard>/space");
+            interactAction.AddBinding("<Gamepad>/buttonSouth");
+
+            interactAction.performed += ctx => Interact();
+        }
+
+        private void OnEnable()
+        {
+            moveAction.Enable();
+            interactAction.Enable();
+        }
+
+        private void OnDisable()
+        {
+            moveAction.Disable();
+            interactAction.Disable();
         }
 
         private void Start()
         {
-            // Restore position if GameManager has data
             if (GameManager.Instance != null)
             {
                 if (GameManager.Instance.TryLoadPlayerState(out Vector3 savedPos, out Quaternion savedRot))
@@ -41,44 +80,35 @@ namespace JRPG.Player
 
         private void Update()
         {
-            // Process Inputs
             ProcessInputs();
-
-            if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))
-            {
-                Interact();
-            }
         }
 
         private void FixedUpdate()
         {
-            // Physics calculations
             Move();
         }
 
         private void ProcessInputs()
         {
-            float moveX = Input.GetAxisRaw("Horizontal");
-            float moveZ = Input.GetAxisRaw("Vertical"); // In 3D, Vertical is Z axis
+            // Read Vector2 from new input system
+            Vector2 input = moveAction.ReadValue<Vector2>();
 
-            // We move on X and Z plane. Y is up/down.
-            movementInput = new Vector3(moveX, 0f, moveZ).normalized;
+            // Convert to Vector3 (X, 0, Z)
+            movementInput = new Vector3(input.x, 0f, input.y);
 
             if (movementInput != Vector3.zero)
             {
-                lastMovedDirection = movementInput;
+                lastMovedDirection = movementInput.normalized;
             }
         }
 
         private void Move()
         {
-            // Set velocity directly, preserving Y velocity (gravity)
             rb.velocity = new Vector3(movementInput.x * moveSpeed, rb.velocity.y, movementInput.z * moveSpeed);
 
-            // Optional: Rotate player to face movement direction
             if (movementInput != Vector3.zero)
             {
-                transform.forward = movementInput;
+                transform.forward = movementInput.normalized;
             }
         }
 
@@ -86,8 +116,6 @@ namespace JRPG.Player
         {
             Vector3 interactPos = transform.position + lastMovedDirection * interactDistance;
 
-            // Check for colliders at the interaction position
-            // Using OverlapSphere for 3D
             Collider[] colliders = Physics.OverlapSphere(interactPos, 0.5f, interactLayer);
 
             foreach (Collider col in colliders)
@@ -96,12 +124,11 @@ namespace JRPG.Player
                 if (interactable != null)
                 {
                     interactable.Interact();
-                    return; // Interact with only one object at a time
+                    return;
                 }
             }
         }
 
-        // Public getter for other systems to know where the player is looking
         public Vector3 GetFacingDirection()
         {
             return lastMovedDirection;

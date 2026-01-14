@@ -14,7 +14,14 @@ Sigue esta guía paso a paso para configurar tu entorno en Unity.
 3.  Selecciona la plantilla **3D Core**.
 4.  Ponle nombre a tu juego y crea el proyecto.
 
-### Paso 2: Importar los Scripts
+### Paso 2: Importar el Input System
+Este proyecto utiliza el **New Input System** de Unity.
+1.  En Unity, ve a `Window` > `Package Manager`.
+2.  Cambia "Packages: In Project" a "Packages: Unity Registry".
+3.  Busca **Input System** y dale a **Install**.
+4.  Si Unity te pregunta si quieres reiniciar el backend de input, di que **Sí**.
+
+### Paso 3: Importar los Scripts
 1.  Descarga los archivos de este repositorio.
 2.  Copia la carpeta `Assets` (que contiene `Scripts`) y pégala dentro de la carpeta `Assets` de tu proyecto de Unity.
     *   *Ruta final esperada:* `TuProyecto/Assets/Scripts/...`
@@ -114,18 +121,18 @@ Después de generar la escena, verifica estos puntos para asegurar que todo func
 Dale al botón **Play** (▶) en la parte superior central.
 
 *   **Movimiento:** Usa `W`, `A`, `S`, `D` o las `Flechas` del teclado.
-*   **Interactuar:** Acércate a un NPC (Verde) y pulsa la tecla `E` o `Espacio`.
+*   **Interactuar:** Acércate a un NPC (Verde) y pulsa la tecla `E` o `Espacio` (O botón Sur del mando).
 *   **Combatir:** Camina hacia el enemigo (Rojo) y tócalo.
 
 ---
 
 ## Solución de Problemas Comunes
 
+**P: Error "UnityEngine.Input.GetAxisRaw"**
+R: Asegúrate de instalar el paquete "Input System" desde el Package Manager, ya que este proyecto usa la versión moderna de controles.
+
 **P: Mi personaje no se anima.**
 R: Asegúrate de haber creado el `Animator Controller` como se explica en la sección 5 y haberlo asignado al campo `Controller` dentro del componente `Animator` del modelo visual.
 
 **P: Mi personaje atraviesa el suelo.**
 R: Asegúrate de que el objeto `Floor` tiene un `Mesh Collider`.
-
-**P: El personaje se tumba o rueda.**
-R: Revisa las `Constraints` del `Rigidbody` en el Player.
