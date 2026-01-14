@@ -22,10 +22,11 @@ namespace JRPG.Editor
             GameObject player = CreatePlayer();
 
             // 4. Create Enemy (Red Cube)
-            CreateEnemy(new Vector3(3, 1, 0));
+            CreateEnemy(new Vector3(4, 1, 0));
 
-            // 5. Create NPC (Green Cylinder)
-            CreateNPC(new Vector3(-3, 1, 0));
+            // 5. Create NPCs (Green Cylinders)
+            CreateNPC(new Vector3(-4, 1, 0), "Welcome to our village!");
+            CreateNPC(new Vector3(-4, 1, 4), "Beware of the red cube... it bites.");
 
             Debug.Log("JRPG 3D Test Scene Created! don't forget to set the Tags and Layers as described in the README.");
             Selection.activeGameObject = player;
@@ -35,7 +36,7 @@ namespace JRPG.Editor
         {
             GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
             floor.name = "Floor";
-            floor.transform.localScale = new Vector3(2, 1, 2); // 20x20 meters
+            floor.transform.localScale = new Vector3(3, 1, 3); // 30x30 meters
         }
 
         private static void SetupCamera()
@@ -49,7 +50,7 @@ namespace JRPG.Editor
             }
 
             // Top-down view
-            cam.transform.position = new Vector3(0, 10, -8);
+            cam.transform.position = new Vector3(0, 12, -10);
             cam.transform.rotation = Quaternion.Euler(50, 0, 0);
         }
 
@@ -97,13 +98,11 @@ namespace JRPG.Editor
             if (rend != null) rend.material.color = Color.red;
 
             // BoxCollider is added automatically by CreatePrimitive
-            // Rigidbody is optional for static enemies, but if they move they need it.
-            // For now, let's keep them as static obstacles that trigger battle on touch.
 
             enemy.AddComponent<EnemyOverworld>();
         }
 
-        private static void CreateNPC(Vector3 position)
+        private static void CreateNPC(Vector3 position, string dialogue)
         {
             GameObject npc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             npc.name = "Villager";
@@ -114,7 +113,8 @@ namespace JRPG.Editor
 
             // CylinderCollider/CapsuleCollider is added automatically
 
-            npc.AddComponent<NPC>();
+            NPC npcScript = npc.AddComponent<NPC>();
+            npcScript.SetDialogue(dialogue);
         }
     }
 }

@@ -7,6 +7,11 @@ namespace JRPG.Interaction
         [TextArea]
         [SerializeField] private string dialogueText = "Hello traveler!";
 
+        public void SetDialogue(string text)
+        {
+            dialogueText = text;
+        }
+
         public void Interact()
         {
             // In a real game, this would call a DialogueManager.

@@ -18,8 +18,8 @@ namespace JRPG.Interaction
                 {
                     EncounterManager.Instance.StartBattle(enemyId);
 
-                    // Optional: Destroy this enemy object or disable it
-                    // Destroy(gameObject);
+                    // Visual feedback: Destroy this enemy object to simulate "defeat" or "encounter started"
+                    Destroy(gameObject);
                 }
                 else
                 {

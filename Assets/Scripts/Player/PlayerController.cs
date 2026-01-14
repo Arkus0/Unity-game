@@ -11,7 +11,7 @@ namespace JRPG.Player
 
         [Header("Interaction Settings")]
         [SerializeField] private float interactDistance = 1f;
-        [SerializeField] private LayerMask interactLayer;
+        [SerializeField] private LayerMask interactLayer = ~0; // Default to 'Everything' for easier testing
 
         private Rigidbody rb;
         private Vector3 movementInput;
