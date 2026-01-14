@@ -3,7 +3,7 @@ using JRPG.Interaction;
 
 namespace JRPG.Player
 {
-    [RequireComponent(typeof(Rigidbody2D))]
+    [RequireComponent(typeof(Rigidbody))]
     public class PlayerController : MonoBehaviour
     {
         [Header("Movement Settings")]
@@ -13,15 +13,15 @@ namespace JRPG.Player
         [SerializeField] private float interactDistance = 1f;
         [SerializeField] private LayerMask interactLayer;
 
-        private Rigidbody2D rb;
-        private Vector2 movementInput;
-        private Vector2 lastMovedDirection; // Useful for interactions (facing direction)
+        private Rigidbody rb;
+        private Vector3 movementInput;
+        private Vector3 lastMovedDirection; // Useful for interactions (facing direction)
 
         private void Awake()
         {
-            rb = GetComponent<Rigidbody2D>();
-            // Default facing direction (down)
-            lastMovedDirection = Vector2.down;
+            rb = GetComponent<Rigidbody>();
+            // Default facing direction (Back/South in 3D usually)
+            lastMovedDirection = Vector3.back;
         }
 
         private void Update()
@@ -44,11 +44,12 @@ namespace JRPG.Player
         private void ProcessInputs()
         {
             float moveX = Input.GetAxisRaw("Horizontal");
-            float moveY = Input.GetAxisRaw("Vertical");
+            float moveZ = Input.GetAxisRaw("Vertical"); // In 3D, Vertical is Z axis
 
-            movementInput = new Vector2(moveX, moveY).normalized;
+            // We move on X and Z plane. Y is up/down.
+            movementInput = new Vector3(moveX, 0f, moveZ).normalized;
 
-            if (movementInput != Vector2.zero)
+            if (movementInput != Vector3.zero)
             {
                 lastMovedDirection = movementInput;
             }
@@ -56,28 +57,37 @@ namespace JRPG.Player
 
         private void Move()
         {
-            rb.velocity = movementInput * moveSpeed;
+            // Set velocity directly, preserving Y velocity (gravity)
+            rb.velocity = new Vector3(movementInput.x * moveSpeed, rb.velocity.y, movementInput.z * moveSpeed);
+
+            // Optional: Rotate player to face movement direction
+            if (movementInput != Vector3.zero)
+            {
+                transform.forward = movementInput;
+            }
         }
 
         private void Interact()
         {
-            Vector2 interactPos = (Vector2)transform.position + lastMovedDirection * interactDistance;
+            Vector3 interactPos = transform.position + lastMovedDirection * interactDistance;
 
             // Check for colliders at the interaction position
-            Collider2D collider = Physics2D.OverlapCircle(interactPos, 0.5f, interactLayer);
+            // Using OverlapSphere for 3D
+            Collider[] colliders = Physics.OverlapSphere(interactPos, 0.5f, interactLayer);
 
-            if (collider != null)
+            foreach (Collider col in colliders)
             {
-                IInteractable interactable = collider.GetComponent<IInteractable>();
+                IInteractable interactable = col.GetComponent<IInteractable>();
                 if (interactable != null)
                 {
                     interactable.Interact();
+                    return; // Interact with only one object at a time
                 }
             }
         }
 
         // Public getter for other systems to know where the player is looking
-        public Vector2 GetFacingDirection()
+        public Vector3 GetFacingDirection()
         {
             return lastMovedDirection;
         }
@@ -85,7 +95,7 @@ namespace JRPG.Player
         private void OnDrawGizmos()
         {
             Gizmos.color = Color.yellow;
-            Vector2 interactPos = (Vector2)transform.position + lastMovedDirection * interactDistance;
+            Vector3 interactPos = transform.position + lastMovedDirection * interactDistance;
             Gizmos.DrawWireSphere(interactPos, 0.5f);
         }
     }

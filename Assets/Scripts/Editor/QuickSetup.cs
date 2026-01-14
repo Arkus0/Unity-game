@@ -8,23 +8,49 @@ namespace JRPG.Editor
 {
     public class QuickSetup
     {
-        [MenuItem("Tools/JRPG/Create Test Scene")]
+        [MenuItem("Tools/JRPG/Create 3D Test Scene")]
         public static void CreateTestScene()
         {
-            // 1. Create Encounter Manager
+            // 1. Setup Environment
+            CreateFloor();
+            SetupCamera();
+
+            // 2. Create Encounter Manager
             CreateEncounterManager();
 
-            // 2. Create Player
+            // 3. Create Player (Capsule)
             GameObject player = CreatePlayer();
 
-            // 3. Create Enemy
-            CreateEnemy(new Vector3(3, 0, 0));
+            // 4. Create Enemy (Red Cube)
+            CreateEnemy(new Vector3(3, 1, 0));
 
-            // 4. Create NPC
-            CreateNPC(new Vector3(-3, 0, 0));
+            // 5. Create NPC (Green Cylinder)
+            CreateNPC(new Vector3(-3, 1, 0));
 
-            Debug.Log("JRPG Test Scene Created! don't forget to set the Tags and Layers as described in the README.");
+            Debug.Log("JRPG 3D Test Scene Created! don't forget to set the Tags and Layers as described in the README.");
             Selection.activeGameObject = player;
+        }
+
+        private static void CreateFloor()
+        {
+            GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            floor.name = "Floor";
+            floor.transform.localScale = new Vector3(2, 1, 2); // 20x20 meters
+        }
+
+        private static void SetupCamera()
+        {
+            Camera cam = Camera.main;
+            if (cam == null)
+            {
+                GameObject camObj = new GameObject("Main Camera");
+                cam = camObj.AddComponent<Camera>();
+                camObj.tag = "MainCamera";
+            }
+
+            // Top-down view
+            cam.transform.position = new Vector3(0, 10, -8);
+            cam.transform.rotation = Quaternion.Euler(50, 0, 0);
         }
 
         private static void CreateEncounterManager()
@@ -35,22 +61,20 @@ namespace JRPG.Editor
 
         private static GameObject CreatePlayer()
         {
-            GameObject player = new GameObject("Player");
+            // Create Capsule for Player
+            GameObject player = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            player.name = "Player";
+            player.transform.position = new Vector3(0, 1, 0); // Above floor
 
-            // Add Components
-            SpriteRenderer sr = player.AddComponent<SpriteRenderer>();
-            sr.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
-            sr.color = Color.blue;
+            // Color it Blue
+            Renderer rend = player.GetComponent<Renderer>();
+            if (rend != null) rend.material.color = Color.blue;
 
-            Rigidbody2D rb = player.AddComponent<Rigidbody2D>();
-            rb.gravityScale = 0;
-            rb.constraints = RigidbodyConstraints2D.FreezeRotation;
-
-            BoxCollider2D col = player.AddComponent<BoxCollider2D>();
+            Rigidbody rb = player.AddComponent<Rigidbody>();
+            rb.constraints = RigidbodyConstraints.FreezeRotation; // Prevent tipping over
 
             player.AddComponent<PlayerController>();
 
-            // Attempt to set Tag (requires tag to exist, usually "Player" exists by default)
             try
             {
                 player.tag = "Player";
@@ -65,33 +89,32 @@ namespace JRPG.Editor
 
         private static void CreateEnemy(Vector3 position)
         {
-            GameObject enemy = new GameObject("Enemy_Slime");
+            GameObject enemy = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            enemy.name = "Enemy_Slime";
             enemy.transform.position = position;
 
-            SpriteRenderer sr = enemy.AddComponent<SpriteRenderer>();
-            sr.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
-            sr.color = Color.red;
+            Renderer rend = enemy.GetComponent<Renderer>();
+            if (rend != null) rend.material.color = Color.red;
 
-            BoxCollider2D col = enemy.AddComponent<BoxCollider2D>();
-            // Not a trigger, so we can collide. EnemyOverworld uses OnCollisionEnter2D
+            // BoxCollider is added automatically by CreatePrimitive
+            // Rigidbody is optional for static enemies, but if they move they need it.
+            // For now, let's keep them as static obstacles that trigger battle on touch.
 
             enemy.AddComponent<EnemyOverworld>();
         }
 
         private static void CreateNPC(Vector3 position)
         {
-            GameObject npc = new GameObject("Villager");
+            GameObject npc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            npc.name = "Villager";
             npc.transform.position = position;
 
-            SpriteRenderer sr = npc.AddComponent<SpriteRenderer>();
-            sr.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
-            sr.color = Color.green;
+            Renderer rend = npc.GetComponent<Renderer>();
+            if (rend != null) rend.material.color = Color.green;
 
-            BoxCollider2D col = npc.AddComponent<BoxCollider2D>();
+            // CylinderCollider/CapsuleCollider is added automatically
 
             npc.AddComponent<NPC>();
-
-            // Note: Layers cannot be easily set if they don't exist. User must do this manually.
         }
     }
 }

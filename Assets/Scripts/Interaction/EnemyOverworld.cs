@@ -3,12 +3,12 @@ using JRPG.Systems;
 
 namespace JRPG.Interaction
 {
-    [RequireComponent(typeof(Collider2D))]
+    [RequireComponent(typeof(Collider))]
     public class EnemyOverworld : MonoBehaviour
     {
         [SerializeField] private string enemyId = "Slime";
 
-        private void OnCollisionEnter2D(Collision2D collision)
+        private void OnCollisionEnter(Collision collision)
         {
             if (collision.gameObject.CompareTag("Player"))
             {

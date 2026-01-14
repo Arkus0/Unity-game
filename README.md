@@ -1,42 +1,33 @@
-# Instrucciones para tu JRPG 2D en Unity
+# Instrucciones para tu JRPG 3D en Unity
 
-¡Hola! Aquí tienes los scripts base para tu juego. Sigue estos pasos para configurarlos en tu proyecto de Unity.
+¡Hola! Aquí tienes los scripts base para tu juego JRPG en 3D. Sigue estos pasos para configurarlos en tu proyecto de Unity.
 
 ## 1. Configuración del Proyecto
-1.  Abre tu proyecto en Unity (2D Core).
+1.  Abre tu proyecto en Unity (3D Core).
 2.  Copia la carpeta `Assets` generada aquí dentro de la carpeta `Assets` de tu proyecto.
 
-## 2. Configuración del Jugador (Player)
-1.  Crea un nuevo Sprite o GameObject en la escena para tu jugador.
-2.  Añádele un componente `Rigidbody2D`.
-    *   **Importante:** En el Rigidbody2D, ajusta `Gravity Scale` a `0` (para que no se caiga en la vista top-down).
-    *   Marca `Freeze Rotation Z` en "Constraints".
-3.  Añádele un componente `BoxCollider2D` o `CircleCollider2D` para las colisiones.
-4.  Añade el script `PlayerController` (arrástralo desde `Assets/Scripts/Player`).
-    *   Puedes ajustar la velocidad (`Move Speed`) en el Inspector.
-5.  **Tag:** Asegúrate de que el GameObject del jugador tenga el Tag `Player` (arriba a la derecha en el Inspector).
+## 2. Generación Automática de Escena (Recomendado)
+Para empezar rápido, he creado un script que configura todo por ti.
+1.  En el menú superior de Unity, verás una nueva opción: `Tools` > `JRPG` > `Create 3D Test Scene`.
+2.  Al hacer clic, se creará un suelo, un Jugador (Cápsula Azul), un Enemigo (Cubo Rojo) y un NPC (Cilindro Verde), además de configurar la cámara.
 
-## 3. Configuración de Interacciones (NPCs / Objetos)
-1.  Crea un objeto (ej: un Sprite de un aldeano).
-2.  Añádele un `BoxCollider2D`.
-3.  Añade el script `NPC`.
-    *   Escribe el texto que quieras en el campo `Dialogue Text`.
-4.  **Layers:**
-    *   Ve a la esquina superior derecha -> Layers -> Edit Layers.
-    *   Crea una nueva Layer llamada `Interactable` (por ejemplo, en la Layer 6).
-    *   Asigna esta Layer a tu objeto NPC.
-5.  **Volver al Player:**
-    *   En el script `PlayerController` del jugador, busca `Interaction Settings`.
-    *   En `Interact Layer`, selecciona la layer `Interactable` que acabas de crear.
-    *   Ahora, al acercarte y pulsar **E** o **Espacio**, verás el mensaje en la consola.
+## 3. Configuración Manual y Notas Importantes
 
-## 4. Configuración de Enemigos (Encuentros)
-1.  Crea un objeto vacío en la escena y llámalo `GameManager`.
-2.  Añádele el script `EncounterManager`.
-3.  Crea un enemigo en el mapa (Sprite).
-4.  Añádele un `BoxCollider2D` y el script `EnemyOverworld`.
-    *   Asegúrate de que el Collider no sea "Trigger" si quieres que el jugador choque contra él (o márcalo como Trigger si quieres que lo atraviese al iniciar combate, en cuyo caso habría que cambiar `OnCollisionEnter2D` a `OnTriggerEnter2D` en el script).
-    *   El script actual usa `OnCollisionEnter2D`, así que asegúrate de que **no** sea Trigger.
-5.  Cuando el jugador toque al enemigo, verás un mensaje en la consola indicando el inicio de la batalla.
+### Jugador (Player)
+*   Usa un componente `Rigidbody`.
+*   Asegúrate de que en `Constraints` del Rigidbody, estén marcadas las opciones **Freeze Rotation X** y **Freeze Rotation Z** para que la cápsula no se caiga al moverse.
+*   **Tag:** El objeto debe tener el Tag `Player`.
 
-¡Mucha suerte con tu desarrollo!
+### Interacciones
+*   Para que el jugador detecte NPCs u objetos, necesitamos configurar las **Layers**.
+*   Ve a la esquina superior derecha -> Layers -> Edit Layers.
+*   Crea una nueva Layer llamada `Interactable` (por ejemplo, en la Layer 6).
+*   Asigna esta Layer a tus NPCs (Cilindro Verde).
+*   Selecciona al Jugador, busca el script `PlayerController` y en `Interact Layer`, selecciona `Interactable`.
+
+### Combate (Enemigos)
+*   El cubo rojo tiene el script `EnemyOverworld`.
+*   Al tocarlo con el jugador, verás un mensaje en la consola ("Starting Battle...").
+*   En un juego real, aquí es donde cargarías la escena de combate.
+
+¡Disfruta construyendo tu mundo 3D!
