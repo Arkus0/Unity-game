@@ -11,70 +11,31 @@ namespace JRPG.Editor
         [MenuItem("Tools/JRPG/Create 3D Test Scene")]
         public static void CreateTestScene()
         {
-            // 1. Setup Environment (Village Grid)
-            CreateVillageEnvironment();
-            SetupCamera();
-
-            // 2. Create Encounter Manager
+            // 1. Create Managers
             CreateEncounterManager();
 
-            // 3. Create Player (Capsule)
+            // 2. Create Player
             GameObject player = CreatePlayer();
 
-            // 4. Create Enemy (Red Cube) near the forest edge
-            CreateEnemy(new Vector3(8, 1, 8));
+            // 3. Setup Camera
+            SetupCamera(player.transform);
 
-            // 5. Create NPCs (Green Cylinders) near houses
-            CreateNPC(new Vector3(-5, 1, -2), "Welcome to our village!");
-            CreateNPC(new Vector3(5, 1, -5), "Beware of the red cube... it bites.");
+            // 4. Build Village Environment using new assets
+            GameObject env = new GameObject("Environment");
+            AssetIntegration.BuildMedievalVillage(env.transform);
 
-            Debug.Log("JRPG 3D Village Scene Created! Don't forget to set Tags and Layers.");
+            // 5. Create NPCs (placed relatively safe, though depends on random village gen)
+            CreateNPC(new Vector3(-5, 0.5f, -2), "Welcome to our town!");
+            CreateNPC(new Vector3(5, 0.5f, -5), "Have you seen the market?");
+
+            // 6. Create Enemy
+            CreateEnemy(new Vector3(15, 1, 15));
+
+            Debug.Log("JRPG Medieval Town Scene Created!");
             Selection.activeGameObject = player;
         }
 
-        private static void CreateVillageEnvironment()
-        {
-            GameObject environment = new GameObject("Environment");
-
-            // Create Floor Grid (10x10)
-            GameObject floorParent = new GameObject("Floor_Grid");
-            floorParent.transform.parent = environment.transform;
-
-            for (int x = -10; x <= 10; x += 2)
-            {
-                for (int z = -10; z <= 10; z += 2)
-                {
-                    GameObject tile = GameObject.CreatePrimitive(PrimitiveType.Plane);
-                    tile.name = $"FloorTile_{x}_{z}";
-                    tile.transform.parent = floorParent.transform;
-                    tile.transform.position = new Vector3(x, 0, z);
-                    tile.transform.localScale = new Vector3(0.2f, 1, 0.2f); // 2x2 meters approx
-                }
-            }
-
-            // Create Placeholder Houses
-            CreateHousePlaceholder(new Vector3(-6, 0, 4), environment.transform);
-            CreateHousePlaceholder(new Vector3(6, 0, -4), environment.transform);
-        }
-
-        private static void CreateHousePlaceholder(Vector3 position, Transform parent)
-        {
-            GameObject house = new GameObject("House_Placeholder");
-            house.transform.position = position;
-            house.transform.parent = parent;
-
-            // Simple Cube representing a house
-            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            body.name = "House_Body";
-            body.transform.parent = house.transform;
-            body.transform.localPosition = new Vector3(0, 2, 0);
-            body.transform.localScale = new Vector3(4, 4, 4);
-
-            Renderer rend = body.GetComponent<Renderer>();
-            if (rend != null) rend.material.color = new Color(0.6f, 0.4f, 0.2f); // Brown
-        }
-
-        private static void SetupCamera()
+        private static void SetupCamera(Transform target)
         {
             Camera cam = Camera.main;
             if (cam == null)
@@ -84,41 +45,42 @@ namespace JRPG.Editor
                 camObj.tag = "MainCamera";
             }
 
-            // Top-down view
-            cam.transform.position = new Vector3(0, 15, -12);
-            cam.transform.rotation = Quaternion.Euler(55, 0, 0);
+            CameraFollow follow = cam.gameObject.GetComponent<CameraFollow>();
+            if (follow == null) follow = cam.gameObject.AddComponent<CameraFollow>();
+
+            follow.target = target;
+            if (target != null)
+            {
+                cam.transform.position = target.position + follow.offset;
+                cam.transform.LookAt(target);
+            }
         }
 
         private static void CreateEncounterManager()
         {
-            GameObject obj = new GameObject("GameManager");
-            obj.AddComponent<EncounterManager>();
-            obj.AddComponent<GameManager>();
+            if (GameObject.Find("GameManager") == null)
+            {
+                GameObject obj = new GameObject("GameManager");
+                obj.AddComponent<EncounterManager>();
+                obj.AddComponent<GameManager>();
+            }
         }
 
         private static GameObject CreatePlayer()
         {
-            GameObject player = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            player.name = "Player";
-            player.transform.position = new Vector3(0, 1, 0);
-
-            Renderer rend = player.GetComponent<Renderer>();
-            if (rend != null) rend.material.color = Color.blue;
-
-            Rigidbody rb = player.AddComponent<Rigidbody>();
-            rb.constraints = RigidbodyConstraints.FreezeRotation;
-
-            player.AddComponent<PlayerController>();
-
-            try
+            GameObject player = GameObject.FindWithTag("Player");
+            if (player == null)
             {
+                player = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                player.name = "Player";
                 player.tag = "Player";
-            }
-            catch
-            {
-                Debug.LogWarning("Tag 'Player' not defined. Please add it in Project Settings.");
-            }
+                player.transform.position = new Vector3(0, 1, 0);
 
+                Rigidbody rb = player.AddComponent<Rigidbody>();
+                rb.constraints = RigidbodyConstraints.FreezeRotation;
+
+                player.AddComponent<PlayerController>();
+            }
             return player;
         }
 
@@ -129,7 +91,7 @@ namespace JRPG.Editor
             enemy.transform.position = position;
 
             Renderer rend = enemy.GetComponent<Renderer>();
-            if (rend != null) rend.material.color = Color.red;
+            if(rend) rend.material.color = Color.red;
 
             enemy.AddComponent<EnemyOverworld>();
         }
@@ -141,7 +103,7 @@ namespace JRPG.Editor
             npc.transform.position = position;
 
             Renderer rend = npc.GetComponent<Renderer>();
-            if (rend != null) rend.material.color = Color.green;
+            if(rend) rend.material.color = Color.green;
 
             NPC npcScript = npc.AddComponent<NPC>();
             npcScript.SetDialogue(dialogue);
